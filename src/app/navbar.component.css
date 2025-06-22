@@ -1,0 +1,15 @@
+nav {
+  display: flex;
+  padding: 10px;
+  background-color: #333;
+  height: 41px;
+}
+
+nav .title {
+  color: #fff;
+  margin-right: 10px;
+}
+
+nav input {
+  color: #fff;
+}
