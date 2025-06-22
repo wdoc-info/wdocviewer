@@ -1,10 +1,15 @@
 import { TestBed } from '@angular/core/testing';
+import {
+  HttpClientTestingModule,
+  HttpTestingController,
+} from '@angular/common/http/testing';
 import { AppComponent } from './app.component';
+import JSZip from 'jszip';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [AppComponent],
+      imports: [HttpClientTestingModule, AppComponent],
     }).compileComponents();
   });
 
@@ -14,16 +19,24 @@ describe('AppComponent', () => {
     expect(app).toBeTruthy();
   });
 
-  it(`should have the 'wdocviewer' title`, () => {
+  it('processHtml should strip script and iframe tags', async () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
-    expect(app.title).toEqual('wdocviewer');
-  });
+    const httpMock = TestBed.inject(HttpTestingController);
 
-  it('should render title', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    fixture.detectChanges();
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, wdocviewer');
+    const html =
+      '<html><head></head><body><wdoc-page></wdoc-page><script src="foo.js"></script><iframe></iframe><div>ok</div></body></html>';
+    const zip = new JSZip();
+
+    const promise = app.processHtml(zip, html);
+    const req = httpMock.expectOne('assets/wdoc-styles.css');
+    req.flush('');
+
+    const result = await promise;
+    httpMock.verify();
+
+    expect(result).not.toContain('<script');
+    expect(result).not.toContain('<iframe');
+    expect(result).toContain('ok');
   });
 });
