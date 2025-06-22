@@ -29,4 +29,16 @@ describe('NavbarComponent', () => {
     expect(emitted).toBeTruthy();
     expect(emitted!.name).toBe('test.wdoc');
   });
+
+  it('should emit save event', () => {
+    component.showSave = true;
+    fixture.detectChanges();
+    let called = false;
+    component.save.subscribe(() => (called = true));
+
+    const button = fixture.nativeElement.querySelector('button');
+    button.click();
+
+    expect(called).toBeTrue();
+  });
 });

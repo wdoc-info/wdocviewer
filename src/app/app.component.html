@@ -1,4 +1,8 @@
 <div class="container">
-  <app-navbar (fileSelected)="onFileSelected($event)"></app-navbar>
+  <app-navbar
+    (fileSelected)="onFileSelected($event)"
+    [showSave]="showSave"
+    (save)="onSaveForms()"
+  ></app-navbar>
   <app-viewer [htmlContent]="htmlContent"></app-viewer>
 </div>

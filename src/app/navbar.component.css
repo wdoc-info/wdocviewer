@@ -13,3 +13,7 @@ nav .title {
 nav input {
   color: #fff;
 }
+
+nav button {
+  margin-left: auto;
+}

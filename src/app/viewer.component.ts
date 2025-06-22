@@ -16,4 +16,8 @@ export class ViewerComponent implements AfterViewInit {
   ngAfterViewInit() {
     // scaling or other operations could go here
   }
+
+  get nativeElement(): HTMLElement {
+    return this.contentContainer.nativeElement as HTMLElement;
+  }
 }

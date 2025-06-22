@@ -39,4 +39,16 @@ describe('AppComponent', () => {
     expect(result).not.toContain('<iframe');
     expect(result).toContain('ok');
   });
+
+  it('should mark showSave when form input changes', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const input = document.createElement('input');
+    const container = document.createElement('div');
+    container.appendChild(input);
+    app.viewer = { nativeElement: container } as any;
+    (app as any).attachFormListeners();
+    input.dispatchEvent(new Event('input'));
+    expect(app.showSave).toBeTrue();
+  });
 });

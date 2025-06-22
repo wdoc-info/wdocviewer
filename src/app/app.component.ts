@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ViewChild } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { HttpClient } from '@angular/common/http';
 import { lastValueFrom } from 'rxjs';
@@ -15,6 +15,9 @@ import { ViewerComponent } from './viewer.component';
 })
 export class AppComponent {
   htmlContent: SafeHtml | null = null;
+  showSave = false;
+  private originalArrayBuffer: ArrayBuffer | null = null;
+  @ViewChild(ViewerComponent) viewer!: ViewerComponent;
 
   constructor(private sanitizer: DomSanitizer, private http: HttpClient) {}
 
@@ -24,6 +27,7 @@ export class AppComponent {
       const arrayBuffer = e.target?.result;
       if (arrayBuffer instanceof ArrayBuffer) {
         try {
+          this.originalArrayBuffer = arrayBuffer;
           const zip = await JSZip.loadAsync(arrayBuffer);
           const indexFile = zip.file('index.html');
           if (!indexFile) {
@@ -35,6 +39,7 @@ export class AppComponent {
           // Bypass Angular's security after processing the content
           this.htmlContent =
             this.sanitizer.bypassSecurityTrustHtml(processedHtml);
+          setTimeout(() => this.attachFormListeners());
         } catch (error) {
           console.error('Error processing zip file:', error);
           alert('Error processing .wdoc file.');
@@ -42,6 +47,46 @@ export class AppComponent {
       }
     };
     reader.readAsArrayBuffer(file);
+  }
+
+  private attachFormListeners() {
+    if (!this.viewer) {
+      return;
+    }
+    const container = this.viewer.nativeElement;
+    const controls = container.querySelectorAll('input, textarea, select');
+    controls.forEach((el) => {
+      el.addEventListener('input', () => (this.showSave = true));
+      el.addEventListener('change', () => (this.showSave = true));
+    });
+  }
+
+  async onSaveForms() {
+    if (!this.originalArrayBuffer || !this.viewer) {
+      return;
+    }
+    const newZip = await JSZip.loadAsync(this.originalArrayBuffer);
+    const formsFolder = newZip.folder('wdoc-form');
+    const forms = Array.from(this.viewer.nativeElement.querySelectorAll('form'));
+    let idx = 1;
+    forms.forEach((form) => {
+      const fd = new FormData(form as HTMLFormElement);
+      const data: Record<string, unknown> = {};
+      fd.forEach((value, key) => {
+        data[key] =
+          typeof value === 'string' ? value : (value as File).name || '';
+      });
+      const id = form.getAttribute('id');
+      const name = id ? `${id}.json` : `form-${idx++}.json`;
+      formsFolder?.file(name, JSON.stringify(data));
+    });
+    const blob = await newZip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'filled.wdoc';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    this.showSave = false;
   }
 
   /**
