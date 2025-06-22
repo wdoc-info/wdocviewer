@@ -1,4 +1,5 @@
 <nav>
   <div class="title">WDOC viewer</div>
   <input type="file" (change)="onFileChange($event)" accept=".wdoc" />
+  <button *ngIf="showSave" (click)="onSave()">Save</button>
 </nav>
