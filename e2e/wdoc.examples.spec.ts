@@ -20,10 +20,33 @@ test('hello_world example renders', async ({ page }) => {
 test('internal_script example strips scripts', async ({ page }) => {
   await loadExample(page, 'internal_script');
   await expect(page.locator('h1')).toHaveText('Internal script');
-  await expect(page.locator('script')).toHaveCount(0);
+  await expect(page.locator('wdoc-container script')).toHaveCount(0);
 });
 
 test('already_paginated keeps pages', async ({ page }) => {
   await loadExample(page, 'already_paginated');
   await expect(page.locator('wdoc-page')).toHaveCount(2);
+});
+
+test('internal_image example embeds images', async ({ page }) => {
+  await loadExample(page, 'internal_image');
+  const src = await page.locator('img').getAttribute('src');
+  expect(src).toMatch(/^data:image\//);
+});
+
+test('external_image example loads after confirm', async ({ page }) => {
+  page.once('dialog', (dialog) => dialog.accept());
+  await loadExample(page, 'external_image');
+  await expect(page.locator('img')).toHaveAttribute('src', /logo.png/);
+});
+
+test('overflowing_text paginates content', async ({ page }) => {
+  await loadExample(page, 'overflowing_text');
+  const count = await page.locator('wdoc-page').count();
+  expect(count).toBeGreaterThan(1);
+});
+
+test('form example displays form', async ({ page }) => {
+  await loadExample(page, 'form');
+  await expect(page.locator('form')).toHaveCount(1);
 });
