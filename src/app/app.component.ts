@@ -1,36 +1,24 @@
-import { AfterViewInit, Component, ElementRef, ViewChild } from '@angular/core';
+import { Component } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { HttpClient } from '@angular/common/http';
 import { lastValueFrom } from 'rxjs';
 import JSZip from 'jszip';
+import { NavbarComponent } from './navbar.component';
+import { ViewerComponent } from './viewer.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
+  imports: [NavbarComponent, ViewerComponent],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
 })
-export class AppComponent implements AfterViewInit {
+export class AppComponent {
   htmlContent: SafeHtml | null = null;
-
-  // Reference to the container holding the dynamic HTML.
-  @ViewChild('contentContainer') contentContainer!: ElementRef;
 
   constructor(private sanitizer: DomSanitizer, private http: HttpClient) {}
 
-  ngAfterViewInit() {
-    //TO DO scaling for small screen
-    // Compute the initial scale and update the container's CSS variable.
-    //this.computeScale();
-    //window.addEventListener('resize', this.computeScale.bind(this));
-  }
-
-  onFileSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) {
-      return;
-    }
-    const file = input.files[0];
+  onFileSelected(file: File) {
     const reader = new FileReader();
     reader.onload = async (e: ProgressEvent<FileReader>) => {
       const arrayBuffer = e.target?.result;

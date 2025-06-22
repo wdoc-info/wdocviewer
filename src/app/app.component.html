@@ -1,11 +1,4 @@
 <div class="container">
-  <nav>
-    <div class="title">WDOC viewer</div>
-    <input type="file" (change)="onFileSelected($event)" accept=".wdoc" />
-  </nav>
-  @if (htmlContent) {
-    <div #contentContainer>
-      <div [innerHTML]="htmlContent"></div>
-    </div>
-  }
+  <app-navbar (fileSelected)="onFileSelected($event)"></app-navbar>
+  <app-viewer [htmlContent]="htmlContent"></app-viewer>
 </div>
