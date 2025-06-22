@@ -1,0 +1,17 @@
+.container {
+  margin: 0 auto;
+  padding: 0;
+}
+
+nav {
+  display: flex;
+  padding: 10px;
+  background-color: #333;
+  .title {
+    color: #fff;
+    margin-right: 10px;
+  }
+  input {
+    color: #fff;
+  }
+}
