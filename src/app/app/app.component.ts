@@ -301,8 +301,12 @@ export class AppComponent {
     const formElements = Array.from(doc.querySelectorAll('form'));
 
     const jsonFiles = Object.keys(formsFolder.files).filter((n) => n.endsWith('.json'));
+    const root: string | undefined = (formsFolder as any).root;
     for (const jsonFile of jsonFiles) {
-      const file = formsFolder.file(jsonFile);
+      const relativeName = root && jsonFile.startsWith(root)
+        ? jsonFile.slice(root.length)
+        : jsonFile;
+      const file = formsFolder.file(relativeName);
       if (!file) {
         continue;
       }
@@ -313,7 +317,7 @@ export class AppComponent {
         continue;
       }
 
-      const base = jsonFile.replace(/\.json$/, '');
+      const base = relativeName.replace(/\.json$/, '');
       let form: HTMLFormElement | null = null;
       if (base.startsWith('form-')) {
         const idx = parseInt(base.slice(5), 10) - 1;
