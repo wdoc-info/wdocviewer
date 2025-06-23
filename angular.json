@@ -76,6 +76,10 @@
           "options": {
             "polyfills": ["zone.js", "zone.js/testing"],
             "tsConfig": "tsconfig.spec.json",
+            "karmaConfig": "karma.conf.js",
+            "watch": false,
+            "browsers": "ChromeHeadless",
+            "codeCoverage": false,
             "assets": [
               {
                 "glob": "**/*",
