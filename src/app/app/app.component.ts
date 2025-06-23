@@ -69,24 +69,28 @@ export class AppComponent {
     const formsFolder = newZip.folder('wdoc-form');
     const forms = Array.from(this.viewer.nativeElement.querySelectorAll('form'));
     let idx = 1;
-    forms.forEach((form) => {
+    for (const form of forms) {
       const fd = new FormData(form as HTMLFormElement);
       const data: Record<string, unknown> = {};
-      fd.forEach((value, key) => {
+      for (const [key, value] of fd.entries()) {
         if (typeof value === 'string') {
           data[key] = value;
         } else {
-          const file = value as File;
-          data[key] = file.name || '';
+          const input = form.querySelector(`[name="${key}"]`) as HTMLInputElement | null;
+          const file = input?.files?.[0] as File | undefined;
           if (file && file.size > 0 && file.name) {
-            formsFolder?.file(file.name, file);
+            data[key] = file.name;
+            const buf = await file.arrayBuffer();
+            formsFolder?.file(file.name, buf, { binary: true });
+          } else {
+            data[key] = '';
           }
         }
-      });
+      }
       const id = form.getAttribute('id');
       const name = id ? `${id}.json` : `form-${idx++}.json`;
       formsFolder?.file(name, JSON.stringify(data));
-    });
+    }
     const blob = await newZip.generateAsync({ type: 'blob' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -300,19 +304,15 @@ export class AppComponent {
 
     const formElements = Array.from(doc.querySelectorAll('form'));
 
-    const jsonFiles = Object.keys(formsFolder.files).filter((n) => n.endsWith('.json'));
+    const entries = formsFolder.filter((path) => path.endsWith('.json'));
     const root: string | undefined = (formsFolder as any).root;
-    for (const jsonFile of jsonFiles) {
-      const relativeName = root && jsonFile.startsWith(root)
-        ? jsonFile.slice(root.length)
-        : jsonFile;
-      const file = formsFolder.file(relativeName);
-      if (!file) {
-        continue;
-      }
+    for (const entry of entries) {
+      const relativeName = root && entry.name.startsWith(root)
+        ? entry.name.slice(root.length)
+        : entry.name;
       let data: Record<string, string>;
       try {
-        data = JSON.parse(await file.async('text'));
+        data = JSON.parse(await entry.async('text'));
       } catch {
         continue;
       }
@@ -340,12 +340,15 @@ export class AppComponent {
           if (typeof value === 'string' && value) {
             const fileEntry = formsFolder.file(value);
             if (fileEntry) {
-              const blob = await fileEntry.async('blob');
+              const mime = this.guessMimeType(value);
+              const buffer = await fileEntry.async('arraybuffer');
+              const blob = new Blob([buffer], mime ? { type: mime } : undefined);
               const url = URL.createObjectURL(blob);
               const link = doc.createElement('a');
               link.href = url;
               link.textContent = value;
               link.target = '_blank';
+              link.download = value;
               control.insertAdjacentElement('afterend', link);
             }
           }
@@ -358,8 +361,32 @@ export class AppComponent {
           }
         } else {
           (control as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value = String(value);
+          if (control instanceof HTMLInputElement) {
+            control.setAttribute('value', String(value));
+          } else if (control instanceof HTMLTextAreaElement) {
+            control.textContent = String(value);
+          }
         }
       }
+    }
+  }
+
+  private guessMimeType(name: string): string {
+    const ext = name.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'png':
+        return 'image/png';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'gif':
+        return 'image/gif';
+      case 'pdf':
+        return 'application/pdf';
+      case 'txt':
+        return 'text/plain';
+      default:
+        return '';
     }
   }
 }

@@ -67,7 +67,9 @@ describe('AppComponent', () => {
     input.type = 'file';
     input.name = 'photo';
     const file = new File(['data'], 'photo.txt');
-    Object.defineProperty(input, 'files', { value: [file] });
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    Object.defineProperty(input, 'files', { value: dt.files });
     form.appendChild(input);
     const container = document.createElement('div');
     container.appendChild(form);
@@ -113,5 +115,7 @@ describe('AppComponent', () => {
     const link = doc.querySelector('input[name="photo"] + a') as HTMLAnchorElement;
     expect(link).toBeTruthy();
     expect(link.textContent).toBe('img.txt');
+    expect(link.getAttribute('download')).toBe('img.txt');
+    expect(link.getAttribute('href')!.startsWith('blob:')).toBeTrue();
   });
 });
