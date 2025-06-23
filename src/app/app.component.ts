@@ -73,8 +73,15 @@ export class AppComponent {
       const fd = new FormData(form as HTMLFormElement);
       const data: Record<string, unknown> = {};
       fd.forEach((value, key) => {
-        data[key] =
-          typeof value === 'string' ? value : (value as File).name || '';
+        if (typeof value === 'string') {
+          data[key] = value;
+        } else {
+          const file = value as File;
+          data[key] = file.name || '';
+          if (file && file.size > 0 && file.name) {
+            formsFolder?.file(file.name, file);
+          }
+        }
       });
       const id = form.getAttribute('id');
       const name = id ? `${id}.json` : `form-${idx++}.json`;

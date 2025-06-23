@@ -57,3 +57,7 @@ Angular CLI does not come with an end-to-end testing framework by default. You c
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+
+## Form uploads
+
+When saving forms from a `.wdoc`, any `<input type="file">` elements are preserved. The selected files are stored in the `wdoc-form` folder of the generated archive and the form JSON includes the uploaded filename.

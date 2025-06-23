@@ -51,4 +51,41 @@ describe('AppComponent', () => {
     input.dispatchEvent(new Event('input'));
     expect(app.showSave).toBeTrue();
   });
+
+  it('should include uploaded files when saving forms', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+
+    const baseZip = new JSZip();
+    baseZip.file('index.html', '<form id="f1"></form>');
+    const arrayBuffer = await baseZip.generateAsync({ type: 'arraybuffer' });
+    app.originalArrayBuffer = arrayBuffer;
+
+    const form = document.createElement('form');
+    form.setAttribute('id', 'f1');
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.name = 'photo';
+    const file = new File(['data'], 'photo.txt');
+    Object.defineProperty(input, 'files', { value: [file] });
+    form.appendChild(input);
+    const container = document.createElement('div');
+    container.appendChild(form);
+    app.viewer = { nativeElement: container } as any;
+
+    let savedBlob: Blob | null = null;
+    spyOn(URL, 'createObjectURL').and.callFake((b: Blob) => {
+      savedBlob = b;
+      return 'blob:fake';
+    });
+    spyOn(URL, 'revokeObjectURL');
+
+    await app.onSaveForms();
+
+    expect(savedBlob).toBeTruthy();
+    const resultZip = await JSZip.loadAsync(savedBlob!);
+    const json = await resultZip.file('wdoc-form/f1.json')!.async('text');
+    expect(JSON.parse(json).photo).toBe('photo.txt');
+    expect(resultZip.file('wdoc-form/photo.txt')).toBeTruthy();
+  });
 });
