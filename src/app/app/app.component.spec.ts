@@ -88,4 +88,30 @@ describe('AppComponent', () => {
     expect(JSON.parse(json).photo).toBe('photo.txt');
     expect(resultZip.file('wdoc-form/photo.txt')).toBeTruthy();
   });
+
+  it('should populate forms from wdoc-form folder', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const zip = new JSZip();
+    const html =
+      '<form id="f1"><input name="username"/><input type="file" name="photo"/></form>';
+    zip.file('index.html', html);
+    const folder = zip.folder('wdoc-form')!;
+    folder.file('f1.json', JSON.stringify({ username: 'bob', photo: 'img.txt' }));
+    folder.file('img.txt', 'data');
+
+    const processedPromise = app.processHtml(zip, html);
+    const req = httpMock.expectOne('assets/wdoc-styles.css');
+    req.flush('');
+    const processed = await processedPromise;
+    httpMock.verify();
+
+    const doc = new DOMParser().parseFromString(processed, 'text/html');
+    expect((doc.querySelector('input[name="username"]') as HTMLInputElement).value).toBe('bob');
+    const link = doc.querySelector('input[name="photo"] + a') as HTMLAnchorElement;
+    expect(link).toBeTruthy();
+    expect(link.textContent).toBe('img.txt');
+  });
 });

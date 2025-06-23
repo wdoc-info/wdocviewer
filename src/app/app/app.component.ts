@@ -234,7 +234,7 @@ export class AppComponent {
     if (!doc.querySelector('wdoc-page')) {
       await this.paginateContent(doc);
     } else {
-      //If there is no wdoc-container, we add it
+      // If there is no wdoc-container, we add it
       if (
         doc.body.querySelector('wdoc-page') &&
         !doc.body.querySelector('wdoc-container')
@@ -248,6 +248,7 @@ export class AppComponent {
       }
     }
 
+    await this.populateFormsFromZip(zip, doc);
     return doc.documentElement.outerHTML;
   }
 
@@ -289,5 +290,72 @@ export class AppComponent {
         currentPage.appendChild(node);
       }
     });
+  }
+
+  private async populateFormsFromZip(zip: JSZip, doc: Document): Promise<void> {
+    const formsFolder = zip.folder('wdoc-form');
+    if (!formsFolder) {
+      return;
+    }
+
+    const formElements = Array.from(doc.querySelectorAll('form'));
+
+    const jsonFiles = Object.keys(formsFolder.files).filter((n) => n.endsWith('.json'));
+    for (const jsonFile of jsonFiles) {
+      const file = formsFolder.file(jsonFile);
+      if (!file) {
+        continue;
+      }
+      let data: Record<string, string>;
+      try {
+        data = JSON.parse(await file.async('text'));
+      } catch {
+        continue;
+      }
+
+      const base = jsonFile.replace(/\.json$/, '');
+      let form: HTMLFormElement | null = null;
+      if (base.startsWith('form-')) {
+        const idx = parseInt(base.slice(5), 10) - 1;
+        if (!isNaN(idx) && idx >= 0 && idx < formElements.length) {
+          form = formElements[idx] as HTMLFormElement;
+        }
+      } else {
+        form = doc.getElementById(base) as HTMLFormElement;
+      }
+      if (!form) {
+        continue;
+      }
+
+      for (const [key, value] of Object.entries(data)) {
+        const control = form.querySelector(`[name="${key}"]`) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
+        if (!control) {
+          continue;
+        }
+        if (control instanceof HTMLInputElement && control.type === 'file') {
+          if (typeof value === 'string' && value) {
+            const fileEntry = formsFolder.file(value);
+            if (fileEntry) {
+              const blob = await fileEntry.async('blob');
+              const url = URL.createObjectURL(blob);
+              const link = doc.createElement('a');
+              link.href = url;
+              link.textContent = value;
+              link.target = '_blank';
+              control.insertAdjacentElement('afterend', link);
+            }
+          }
+        } else if (control instanceof HTMLInputElement && control.type === 'checkbox') {
+          control.checked = value === 'true' || value === 'on' || value === '1';
+        } else if (control instanceof HTMLInputElement && control.type === 'radio') {
+          const radio = form.querySelector(`input[name="${key}"][value="${value}"]`) as HTMLInputElement | null;
+          if (radio) {
+            radio.checked = true;
+          }
+        } else {
+          (control as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value = String(value);
+        }
+      }
+    }
   }
 }
