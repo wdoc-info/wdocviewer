@@ -3,8 +3,8 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { HttpClient } from '@angular/common/http';
 import { lastValueFrom } from 'rxjs';
 import JSZip from 'jszip';
-import { NavbarComponent } from './navbar.component';
-import { ViewerComponent } from './viewer.component';
+import { NavbarComponent } from '../navbar/navbar.component';
+import { ViewerComponent } from '../viewer/viewer.component';
 
 @Component({
   selector: 'app-root',
