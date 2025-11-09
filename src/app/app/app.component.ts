@@ -33,7 +33,22 @@ export class AppComponent {
             return;
           }
           this.originalArrayBuffer = arrayBuffer;
-          const indexFile = zip.file('index.html');
+          let indexFile = zip.file('index.html');
+          if (!indexFile) {
+            const firstFolder = Object.keys(zip.files)
+              .filter((path) => {
+                const entry = zip.files[path];
+                return (
+                  entry.dir &&
+                  path.endsWith('/') &&
+                  !path.slice(0, -1).includes('/')
+                );
+              })
+              .sort()[0];
+            if (firstFolder) {
+              indexFile = zip.file(`${firstFolder}index.html`);
+            }
+          }
           if (!indexFile) {
             alert('index.html not found in the .wdoc file.');
             return;
