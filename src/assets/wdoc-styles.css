@@ -20,6 +20,7 @@ wdoc-page {
   padding: 20px;
   box-sizing: border-box;
   margin-bottom: 20px;
+  display: block;
 }
 
 @media (max-width: 840px) {
@@ -30,7 +31,7 @@ wdoc-page {
 
 @page {
   size: A4;
-  margin: 10mm;
+  margin: 0;
 }
 
 @media print {
@@ -48,15 +49,19 @@ wdoc-page {
   }
 
   wdoc-page {
-    width: 793.8px;
+    width: 100%;
+    max-width: 793.8px;
     min-height: 1122px;
     box-shadow: none;
     margin: 0 auto;
     page-break-after: always;
     page-break-inside: avoid;
+    break-after: page;
+    break-inside: avoid;
   }
 
   wdoc-page:last-child {
     page-break-after: auto;
+    break-after: auto;
   }
 }
