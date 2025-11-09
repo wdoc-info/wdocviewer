@@ -27,8 +27,12 @@ export class AppComponent {
       const arrayBuffer = e.target?.result;
       if (arrayBuffer instanceof ArrayBuffer) {
         try {
-          this.originalArrayBuffer = arrayBuffer;
           const zip = await JSZip.loadAsync(arrayBuffer);
+          const manifestValid = await this.verifyContentManifest(zip);
+          if (!manifestValid) {
+            return;
+          }
+          this.originalArrayBuffer = arrayBuffer;
           const indexFile = zip.file('index.html');
           if (!indexFile) {
             alert('index.html not found in the .wdoc file.');
@@ -448,5 +452,65 @@ export class AppComponent {
       default:
         return 'application/octet-stream';
     }
+  }
+
+  private async verifyContentManifest(zip: JSZip): Promise<boolean> {
+    const manifestFile = zip.file('content_manifest.json');
+    if (!manifestFile) {
+      return true;
+    }
+
+    let manifest: any;
+    try {
+      const manifestText = await manifestFile.async('text');
+      manifest = JSON.parse(manifestText);
+    } catch (error) {
+      console.error('Failed to parse content_manifest.json', error);
+      alert(
+        'The document content could not be verified and will not be opened.'
+      );
+      return false;
+    }
+
+    if (manifest.algorithm !== 'sha256' || !Array.isArray(manifest.files)) {
+      alert(
+        'The document manifest uses an unsupported format and will not be opened.'
+      );
+      return false;
+    }
+
+    const mismatches: string[] = [];
+    for (const file of manifest.files) {
+      if (!file || typeof file.path !== 'string' || typeof file.sha256 !== 'string') {
+        mismatches.push('content_manifest.json');
+        continue;
+      }
+
+      const entry = zip.file(file.path);
+      if (!entry) {
+        mismatches.push(file.path);
+        continue;
+      }
+
+      try {
+        const data = await entry.async('uint8array');
+        const sha256 = await this.computeSha256(data);
+        if (sha256 !== file.sha256) {
+          mismatches.push(file.path);
+        }
+      } catch (error) {
+        console.error('Failed to verify manifest entry', file.path, error);
+        mismatches.push(file.path);
+      }
+    }
+
+    if (mismatches.length > 0) {
+      alert(
+        'The document content does not match its manifest and will not be opened.'
+      );
+      return false;
+    }
+
+    return true;
   }
 }
