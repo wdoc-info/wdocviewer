@@ -91,6 +91,7 @@ export class AppComponent {
       const name = id ? `${id}.json` : `form-${idx++}.json`;
       formsFolder?.file(name, JSON.stringify(data));
     }
+    await this.addContentManifest(newZip);
     const blob = await newZip.generateAsync({ type: 'blob' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -371,9 +372,68 @@ export class AppComponent {
     }
   }
 
+  private async addContentManifest(zip: JSZip): Promise<void> {
+    const files = [] as Array<{
+      path: string;
+      mime: string;
+      sha256: string;
+      role: string;
+    }>;
+
+    const entries = Object.values(zip.files);
+    for (const entry of entries) {
+      if (entry.dir || entry.name === 'content_manifest.json') {
+        continue;
+      }
+      const buffer = await entry.async('arraybuffer');
+      const sha256 = await this.computeSha256(new Uint8Array(buffer));
+      files.push({
+        path: entry.name,
+        mime: this.guessMimeType(entry.name),
+        sha256,
+        role: this.determineRole(entry.name),
+      });
+    }
+
+    files.sort((a, b) => a.path.localeCompare(b.path));
+
+    const manifest = {
+      version: '1.0',
+      created: new Date().toISOString(),
+      algorithm: 'sha256',
+      files,
+    };
+
+    zip.file('content_manifest.json', JSON.stringify(manifest, null, 2));
+  }
+
+  private async computeSha256(data: Uint8Array): Promise<string> {
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    const bytes = Array.from(new Uint8Array(digest));
+    return bytes.map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  private determineRole(path: string): string {
+    if (path === 'index.html') {
+      return 'doc_core';
+    }
+    if (path.startsWith('wdoc-form/')) {
+      return path.endsWith('.json') ? 'form_instance' : 'form_attachment';
+    }
+    return 'asset';
+  }
+
   private guessMimeType(name: string): string {
     const ext = name.split('.').pop()?.toLowerCase();
     switch (ext) {
+      case 'html':
+        return 'text/html';
+      case 'css':
+        return 'text/css';
+      case 'js':
+        return 'application/javascript';
+      case 'json':
+        return 'application/json';
       case 'png':
         return 'image/png';
       case 'jpg':
@@ -386,7 +446,7 @@ export class AppComponent {
       case 'txt':
         return 'text/plain';
       default:
-        return '';
+        return 'application/octet-stream';
     }
   }
 }
