@@ -1,0 +1,25 @@
+{
+  "version": "1.0",
+  "created": "2025-11-09T15:45:34.082Z",
+  "algorithm": "sha256",
+  "files": [
+    {
+      "path": "index.html",
+      "mime": "text/html",
+      "sha256": "8cae054c77c5bf92d17e15e88a93aecfe35413ef2b18d9aa7539ec25c0489709",
+      "role": "doc_core"
+    },
+    {
+      "path": "wdoc-form/koi.jpg",
+      "mime": "image/jpeg",
+      "sha256": "47d9545b606adcae8423703fc702087ce6137537ef05c6e91684a9243bb598ea",
+      "role": "form_attachment"
+    },
+    {
+      "path": "wdoc-form/login.json",
+      "mime": "application/json",
+      "sha256": "b5819be0d7e93d3d414678ea4748e1efb2980ed2484677e4d6e34b2b569f5e0b",
+      "role": "form_instance"
+    }
+  ]
+}
