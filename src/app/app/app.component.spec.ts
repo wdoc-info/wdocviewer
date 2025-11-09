@@ -89,6 +89,43 @@ describe('AppComponent', () => {
     const json = await resultZip.file('wdoc-form/f1.json')!.async('text');
     expect(JSON.parse(json).photo).toBe('photo.txt');
     expect(resultZip.file('wdoc-form/photo.txt')).toBeTruthy();
+
+    const manifestText = await resultZip
+      .file('content_manifest.json')!
+      .async('text');
+    const manifest = JSON.parse(manifestText);
+    expect(manifest.version).toBe('1.0');
+    expect(manifest.algorithm).toBe('sha256');
+    expect(new Date(manifest.created).toString()).not.toBe('Invalid Date');
+    const entries = new Map<string, any>(
+      manifest.files.map((f: any) => [f.path, f])
+    );
+    expect(entries.has('content_manifest.json')).toBeFalse();
+
+    const toHex = (buffer: ArrayBuffer): string =>
+      Array.from(new Uint8Array(buffer))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+
+    const indexEntry = entries.get('index.html');
+    expect(indexEntry).toBeTruthy();
+    expect(indexEntry.role).toBe('doc_core');
+    expect(indexEntry.mime).toBe('text/html');
+    const indexDigest = await crypto.subtle.digest(
+      'SHA-256',
+      await resultZip.file('index.html')!.async('arraybuffer')
+    );
+    expect(indexEntry.sha256).toBe(toHex(indexDigest));
+
+    const formEntry = entries.get('wdoc-form/f1.json');
+    expect(formEntry).toBeTruthy();
+    expect(formEntry.role).toBe('form_instance');
+    expect(formEntry.mime).toBe('application/json');
+
+    const attachmentEntry = entries.get('wdoc-form/photo.txt');
+    expect(attachmentEntry).toBeTruthy();
+    expect(attachmentEntry.role).toBe('form_attachment');
+    expect(attachmentEntry.mime).toBe('text/plain');
   });
 
   it('should populate forms from wdoc-form folder', async () => {
