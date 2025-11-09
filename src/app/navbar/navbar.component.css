@@ -17,3 +17,9 @@ nav input {
 nav button {
   margin-left: auto;
 }
+
+@media print {
+  :host {
+    display: none !important;
+  }
+}
