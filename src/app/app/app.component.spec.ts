@@ -155,4 +155,69 @@ describe('AppComponent', () => {
     expect(link.getAttribute('download')).toBe('img.txt');
     expect(link.getAttribute('href')!.startsWith('blob:')).toBeTrue();
   });
+
+  it('verifyContentManifest allows matching files', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const zip = new JSZip();
+    const html = '<html></html>';
+    zip.file('index.html', html);
+    const encoder = new TextEncoder();
+    const shaBuffer = await crypto.subtle.digest(
+      'SHA-256',
+      encoder.encode(html)
+    );
+    const shaHex = Array.from(new Uint8Array(shaBuffer))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+    zip.file(
+      'content_manifest.json',
+      JSON.stringify({
+        version: '1.0',
+        algorithm: 'sha256',
+        files: [
+          {
+            path: 'index.html',
+            sha256: shaHex,
+            role: 'doc_core',
+            mime: 'text/html',
+          },
+        ],
+      })
+    );
+
+    spyOn(window, 'alert');
+    const result = await app.verifyContentManifest(zip);
+    expect(result).toBeTrue();
+    expect(window.alert).not.toHaveBeenCalled();
+  });
+
+  it('verifyContentManifest blocks mismatched files', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const zip = new JSZip();
+    zip.file('index.html', '<html></html>');
+    zip.file(
+      'content_manifest.json',
+      JSON.stringify({
+        version: '1.0',
+        algorithm: 'sha256',
+        files: [
+          {
+            path: 'index.html',
+            sha256: '0'.repeat(64),
+            role: 'doc_core',
+            mime: 'text/html',
+          },
+        ],
+      })
+    );
+
+    const alertSpy = spyOn(window, 'alert');
+    const result = await app.verifyContentManifest(zip);
+    expect(result).toBeFalse();
+    expect(alertSpy).toHaveBeenCalledWith(
+      'The document content does not match its manifest and will not be opened.'
+    );
+  });
 });

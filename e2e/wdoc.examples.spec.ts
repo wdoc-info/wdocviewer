@@ -50,3 +50,12 @@ test('form example displays form', async ({ page }) => {
   await loadExample(page, 'form');
   await expect(page.locator('form')).toHaveCount(1);
 });
+
+test('image_changed example warns about signature mismatch', async ({ page }) => {
+  const dialogPromise = page.waitForEvent('dialog');
+  await loadExample(page, 'image_changed');
+  const dialog = await dialogPromise;
+  expect(dialog.message()).toContain('does not match its manifest');
+  await dialog.dismiss();
+  await expect(page.locator('wdoc-container')).toHaveCount(0);
+});
