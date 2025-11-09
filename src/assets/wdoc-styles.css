@@ -27,3 +27,36 @@ wdoc-page {
     align-items: flex-start;
   }
 }
+
+@page {
+  size: A4;
+  margin: 10mm;
+}
+
+@media print {
+  body,
+  html {
+    background: transparent !important;
+  }
+
+  wdoc-container {
+    background: transparent;
+    padding: 0;
+    height: auto;
+    overflow: visible;
+    display: block;
+  }
+
+  wdoc-page {
+    width: 793.8px;
+    min-height: 1122px;
+    box-shadow: none;
+    margin: 0 auto;
+    page-break-after: always;
+    page-break-inside: avoid;
+  }
+
+  wdoc-page:last-child {
+    page-break-after: auto;
+  }
+}
