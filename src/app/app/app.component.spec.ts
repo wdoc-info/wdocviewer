@@ -52,6 +52,36 @@ describe('AppComponent', () => {
     expect(app.showSave).toBeTrue();
   });
 
+  it('loads a .wdoc from the url query parameter', async () => {
+    const originalUrl = window.location.href;
+    window.history.pushState(
+      {},
+      '',
+      '/?url=https%3A%2F%2Fexample.com%2Fsample.wdoc'
+    );
+
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const loadSpy = spyOn(app, 'loadWdocFromArrayBuffer').and.returnValue(
+      Promise.resolve()
+    );
+
+    app.ngOnInit();
+
+    const req = httpMock.expectOne('https://example.com/sample.wdoc');
+    const buffer = new ArrayBuffer(1);
+    req.flush(buffer);
+
+    await Promise.resolve();
+
+    expect(loadSpy).toHaveBeenCalledWith(buffer);
+
+    httpMock.verify();
+    window.history.replaceState({}, '', originalUrl);
+  });
+
   it('should include uploaded files when saving forms', async () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance as any;
