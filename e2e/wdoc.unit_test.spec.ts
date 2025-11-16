@@ -27,3 +27,11 @@ test('form example displays form', async ({ page }) => {
   await loadExample(page, 'form');
   await expect(page.locator('form')).toHaveCount(1);
 });
+
+test('url query parameter loads remote .wdoc', async ({ page }) => {
+  const encodedUrl = encodeURIComponent(
+    'https://cdn.pandopia.com/already_paginated.wdoc'
+  );
+  await page.goto(`/?url=${encodedUrl}`);
+  await expect(page.locator('wdoc-page')).toHaveCount(2);
+});

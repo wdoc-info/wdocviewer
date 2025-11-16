@@ -78,7 +78,7 @@
             "tsConfig": "tsconfig.spec.json",
             "karmaConfig": "karma.conf.js",
             "watch": false,
-  "browsers": "ChromeHeadlessNoSandbox",
+            "browsers": "ChromeHeadlessNoSandbox",
             "codeCoverage": false,
             "assets": [
               {
