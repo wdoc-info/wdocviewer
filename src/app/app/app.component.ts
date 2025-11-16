@@ -63,7 +63,9 @@ export class AppComponent implements OnInit {
     }
   }
 
-  private async loadWdocFromArrayBuffer(arrayBuffer: ArrayBuffer): Promise<void> {
+  private async loadWdocFromArrayBuffer(
+    arrayBuffer: ArrayBuffer
+  ): Promise<void> {
     try {
       const zip = await JSZip.loadAsync(arrayBuffer);
       const manifestValid = await this.verifyContentManifest(zip);
@@ -121,7 +123,9 @@ export class AppComponent implements OnInit {
     }
     const newZip = await JSZip.loadAsync(this.originalArrayBuffer);
     const formsFolder = newZip.folder('wdoc-form');
-    const forms = Array.from(this.viewer.nativeElement.querySelectorAll('form'));
+    const forms = Array.from(
+      this.viewer.nativeElement.querySelectorAll('form')
+    );
     let idx = 1;
     for (const form of forms) {
       const fd = new FormData(form as HTMLFormElement);
@@ -130,7 +134,9 @@ export class AppComponent implements OnInit {
         if (typeof value === 'string') {
           data[key] = value;
         } else {
-          const input = form.querySelector(`[name="${key}"]`) as HTMLInputElement | null;
+          const input = form.querySelector(
+            `[name="${key}"]`
+          ) as HTMLInputElement | null;
           const file = input?.files?.[0] as File | undefined;
           if (file && file.size > 0 && file.name) {
             data[key] = file.name;
@@ -168,7 +174,8 @@ export class AppComponent implements OnInit {
     const doc = parser.parseFromString(html, 'text/html');
 
     // 1. Remove external script tags with a "src" attribute and all iframes.
-    const scripts = doc.querySelectorAll('script[src]');
+    const scripts = doc.querySelectorAll('script');
+    console.log('scripts', scripts);
     scripts.forEach((script) => script.remove());
 
     // 2.  Remove all iframe elements
@@ -362,9 +369,10 @@ export class AppComponent implements OnInit {
     const entries = formsFolder.filter((path) => path.endsWith('.json'));
     const root: string | undefined = (formsFolder as any).root;
     for (const entry of entries) {
-      const relativeName = root && entry.name.startsWith(root)
-        ? entry.name.slice(root.length)
-        : entry.name;
+      const relativeName =
+        root && entry.name.startsWith(root)
+          ? entry.name.slice(root.length)
+          : entry.name;
       let data: Record<string, string>;
       try {
         data = JSON.parse(await entry.async('text'));
@@ -387,7 +395,11 @@ export class AppComponent implements OnInit {
       }
 
       for (const [key, value] of Object.entries(data)) {
-        const control = form.querySelector(`[name="${key}"]`) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
+        const control = form.querySelector(`[name="${key}"]`) as
+          | HTMLInputElement
+          | HTMLSelectElement
+          | HTMLTextAreaElement
+          | null;
         if (!control) {
           continue;
         }
@@ -397,7 +409,10 @@ export class AppComponent implements OnInit {
             if (fileEntry) {
               const mime = this.guessMimeType(value);
               const buffer = await fileEntry.async('arraybuffer');
-              const blob = new Blob([buffer], mime ? { type: mime } : undefined);
+              const blob = new Blob(
+                [buffer],
+                mime ? { type: mime } : undefined
+              );
               const url = URL.createObjectURL(blob);
               const link = doc.createElement('a');
               link.href = url;
@@ -407,15 +422,28 @@ export class AppComponent implements OnInit {
               control.insertAdjacentElement('afterend', link);
             }
           }
-        } else if (control instanceof HTMLInputElement && control.type === 'checkbox') {
+        } else if (
+          control instanceof HTMLInputElement &&
+          control.type === 'checkbox'
+        ) {
           control.checked = value === 'true' || value === 'on' || value === '1';
-        } else if (control instanceof HTMLInputElement && control.type === 'radio') {
-          const radio = form.querySelector(`input[name="${key}"][value="${value}"]`) as HTMLInputElement | null;
+        } else if (
+          control instanceof HTMLInputElement &&
+          control.type === 'radio'
+        ) {
+          const radio = form.querySelector(
+            `input[name="${key}"][value="${value}"]`
+          ) as HTMLInputElement | null;
           if (radio) {
             radio.checked = true;
           }
         } else {
-          (control as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value = String(value);
+          (
+            control as
+              | HTMLInputElement
+              | HTMLTextAreaElement
+              | HTMLSelectElement
+          ).value = String(value);
           if (control instanceof HTMLInputElement) {
             control.setAttribute('value', String(value));
           } else if (control instanceof HTMLTextAreaElement) {
@@ -531,7 +559,11 @@ export class AppComponent implements OnInit {
 
     const mismatches: string[] = [];
     for (const file of manifest.files) {
-      if (!file || typeof file.path !== 'string' || typeof file.sha256 !== 'string') {
+      if (
+        !file ||
+        typeof file.path !== 'string' ||
+        typeof file.sha256 !== 'string'
+      ) {
         mismatches.push('content_manifest.json');
         continue;
       }

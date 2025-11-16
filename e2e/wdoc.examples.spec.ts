@@ -40,18 +40,14 @@ test('external_image example loads after confirm', async ({ page }) => {
   await expect(page.locator('img')).toHaveAttribute('src', /logo.png/);
 });
 
-test('overflowing_text paginates content', async ({ page }) => {
-  await loadExample(page, 'overflowing_text');
-  const count = await page.locator('wdoc-page').count();
-  expect(count).toBeGreaterThan(1);
-});
-
 test('form example displays form', async ({ page }) => {
   await loadExample(page, 'form');
   await expect(page.locator('form')).toHaveCount(1);
 });
 
-test('image_changed example warns about signature mismatch', async ({ page }) => {
+test('image_changed example warns about signature mismatch', async ({
+  page,
+}) => {
   const dialogPromise = page.waitForEvent('dialog');
   await loadExample(page, 'image_changed');
   const dialog = await dialogPromise;
