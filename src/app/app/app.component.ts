@@ -1,4 +1,4 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { HttpClient } from '@angular/common/http';
 import { lastValueFrom } from 'rxjs';
@@ -13,7 +13,7 @@ import { ViewerComponent } from '../viewer/viewer.component';
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   htmlContent: SafeHtml | null = null;
   showSave = false;
   private originalArrayBuffer: ArrayBuffer | null = null;
@@ -21,51 +21,86 @@ export class AppComponent {
 
   constructor(private sanitizer: DomSanitizer, private http: HttpClient) {}
 
+  ngOnInit(): void {
+    if (typeof window === 'undefined' || !window.location) {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const rawUrl = params.get('url');
+    if (!rawUrl) {
+      return;
+    }
+
+    const trimmedUrl = rawUrl.trim();
+    if (!trimmedUrl.toLowerCase().endsWith('.wdoc')) {
+      return;
+    }
+
+    void this.fetchAndLoadWdoc(trimmedUrl);
+  }
+
   onFileSelected(file: File) {
     const reader = new FileReader();
     reader.onload = async (e: ProgressEvent<FileReader>) => {
       const arrayBuffer = e.target?.result;
       if (arrayBuffer instanceof ArrayBuffer) {
-        try {
-          const zip = await JSZip.loadAsync(arrayBuffer);
-          const manifestValid = await this.verifyContentManifest(zip);
-          if (!manifestValid) {
-            return;
-          }
-          this.originalArrayBuffer = arrayBuffer;
-          let indexFile = zip.file('index.html');
-          if (!indexFile) {
-            const firstFolder = Object.keys(zip.files)
-              .filter((path) => {
-                const entry = zip.files[path];
-                return (
-                  entry.dir &&
-                  path.endsWith('/') &&
-                  !path.slice(0, -1).includes('/')
-                );
-              })
-              .sort()[0];
-            if (firstFolder) {
-              indexFile = zip.file(`${firstFolder}index.html`);
-            }
-          }
-          if (!indexFile) {
-            alert('index.html not found in the .wdoc file.');
-            return;
-          }
-          const html = await indexFile.async('text');
-          const processedHtml = await this.processHtml(zip, html);
-          // Bypass Angular's security after processing the content
-          this.htmlContent =
-            this.sanitizer.bypassSecurityTrustHtml(processedHtml);
-          setTimeout(() => this.attachFormListeners());
-        } catch (error) {
-          console.error('Error processing zip file:', error);
-          alert('Error processing .wdoc file.');
-        }
+        await this.loadWdocFromArrayBuffer(arrayBuffer);
       }
     };
     reader.readAsArrayBuffer(file);
+  }
+
+  private async fetchAndLoadWdoc(url: string): Promise<void> {
+    try {
+      const arrayBuffer = await lastValueFrom(
+        this.http.get(url, { responseType: 'arraybuffer' })
+      );
+      await this.loadWdocFromArrayBuffer(arrayBuffer);
+    } catch (error) {
+      console.error(`Error downloading .wdoc file from ${url}:`, error);
+      alert('Error downloading .wdoc file from URL.');
+    }
+  }
+
+  private async loadWdocFromArrayBuffer(arrayBuffer: ArrayBuffer): Promise<void> {
+    try {
+      const zip = await JSZip.loadAsync(arrayBuffer);
+      const manifestValid = await this.verifyContentManifest(zip);
+      if (!manifestValid) {
+        return;
+      }
+      this.originalArrayBuffer = arrayBuffer;
+      this.showSave = false;
+      let indexFile = zip.file('index.html');
+      if (!indexFile) {
+        const firstFolder = Object.keys(zip.files)
+          .filter((path) => {
+            const entry = zip.files[path];
+            return (
+              entry.dir &&
+              path.endsWith('/') &&
+              !path.slice(0, -1).includes('/')
+            );
+          })
+          .sort()[0];
+        if (firstFolder) {
+          indexFile = zip.file(`${firstFolder}index.html`);
+        }
+      }
+      if (!indexFile) {
+        alert('index.html not found in the .wdoc file.');
+        return;
+      }
+      const html = await indexFile.async('text');
+      const processedHtml = await this.processHtml(zip, html);
+      // Bypass Angular's security after processing the content
+      this.htmlContent = this.sanitizer.bypassSecurityTrustHtml(processedHtml);
+      setTimeout(() => this.attachFormListeners());
+    } catch (error) {
+      console.error('Error processing zip file:', error);
+      alert('Error processing .wdoc file.');
+    }
   }
 
   private attachFormListeners() {
