@@ -30,6 +30,9 @@ export class AppComponent implements OnInit, OnDestroy {
   private originalArrayBuffer: ArrayBuffer | null = null;
   private resizeListener?: () => void;
   private isDesktop = false;
+  private beforePrintListener?: () => void;
+  private afterPrintListener?: () => void;
+  private wasNavOpenBeforePrint = false;
   @ViewChild(ViewerComponent) viewer!: ViewerComponent;
 
   constructor(private sanitizer: DomSanitizer, private http: HttpClient) {}
@@ -39,6 +42,15 @@ export class AppComponent implements OnInit, OnDestroy {
       this.applyResponsiveLayout(window.innerWidth);
       this.resizeListener = () => this.applyResponsiveLayout(window.innerWidth);
       window.addEventListener('resize', this.resizeListener);
+      this.beforePrintListener = () => {
+        this.wasNavOpenBeforePrint = this.isNavOpen;
+        this.closeNav();
+      };
+      window.addEventListener('beforeprint', this.beforePrintListener);
+      this.afterPrintListener = () => {
+        this.isNavOpen = this.wasNavOpenBeforePrint;
+      };
+      window.addEventListener('afterprint', this.afterPrintListener);
     }
     if (typeof window === 'undefined' || !window.location) {
       return;
@@ -59,8 +71,16 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (typeof window !== 'undefined' && this.resizeListener) {
-      window.removeEventListener('resize', this.resizeListener);
+    if (typeof window !== 'undefined') {
+      if (this.resizeListener) {
+        window.removeEventListener('resize', this.resizeListener);
+      }
+      if (this.beforePrintListener) {
+        window.removeEventListener('beforeprint', this.beforePrintListener);
+      }
+      if (this.afterPrintListener) {
+        window.removeEventListener('afterprint', this.afterPrintListener);
+      }
     }
   }
 

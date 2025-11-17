@@ -12,6 +12,12 @@ body {
 }
 
 @media print {
+  html,
+  body {
+    height: auto;
+    min-height: auto;
+  }
+
   body {
     overflow: visible;
   }
