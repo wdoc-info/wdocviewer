@@ -19,7 +19,6 @@ export class NavbarComponent {
   @Output() fileSelected = new EventEmitter<File>();
   @Output() save = new EventEmitter<void>();
   @Input() showSave = false;
-  @Input() open = false;
   @Output() closeNav = new EventEmitter<void>();
   @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
 

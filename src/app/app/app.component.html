@@ -1,19 +1,27 @@
-<div class="app-shell" [class.nav-open]="isNavOpen">
-  <app-navbar
-    (fileSelected)="onFileSelected($event)"
-    [showSave]="showSave"
-    (save)="onSaveForms()"
-    [open]="isNavOpen"
-    (closeNav)="closeNav()"
-  ></app-navbar>
-
-  <div class="main-content">
-    <app-topbar
+<mat-sidenav-container class="app-shell">
+  <mat-sidenav
+    class="app-sidenav"
+    [mode]="sidenavMode"
+    [opened]="isNavOpen"
+    (openedChange)="isNavOpen = $event"
+  >
+    <app-navbar
+      (fileSelected)="onFileSelected($event)"
       [showSave]="showSave"
-      [navOpen]="isNavOpen"
-      (toggleNav)="toggleNav()"
       (save)="onSaveForms()"
-    ></app-topbar>
-    <app-viewer [htmlContent]="htmlContent"></app-viewer>
-  </div>
-</div>
+      (closeNav)="closeNav()"
+    ></app-navbar>
+  </mat-sidenav>
+
+  <mat-sidenav-content>
+    <div class="main-content">
+      <app-topbar
+        [showSave]="showSave"
+        [navOpen]="isNavOpen"
+        (toggleNav)="toggleNav()"
+        (save)="onSaveForms()"
+      ></app-topbar>
+      <app-viewer [htmlContent]="htmlContent"></app-viewer>
+    </div>
+  </mat-sidenav-content>
+</mat-sidenav-container>
