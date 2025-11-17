@@ -1,8 +1,19 @@
-<div class="container">
+<div class="app-shell" [class.nav-open]="isNavOpen">
   <app-navbar
     (fileSelected)="onFileSelected($event)"
     [showSave]="showSave"
     (save)="onSaveForms()"
+    [open]="isNavOpen"
+    (closeNav)="closeNav()"
   ></app-navbar>
-  <app-viewer [htmlContent]="htmlContent"></app-viewer>
+
+  <div class="main-content">
+    <app-topbar
+      [showSave]="showSave"
+      [navOpen]="isNavOpen"
+      (toggleNav)="toggleNav()"
+      (save)="onSaveForms()"
+    ></app-topbar>
+    <app-viewer [htmlContent]="htmlContent"></app-viewer>
+  </div>
 </div>

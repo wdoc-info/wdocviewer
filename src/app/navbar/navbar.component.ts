@@ -1,4 +1,11 @@
-import { Component, EventEmitter, Output, Input } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  EventEmitter,
+  Output,
+  Input,
+  ViewChild,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -12,6 +19,9 @@ export class NavbarComponent {
   @Output() fileSelected = new EventEmitter<File>();
   @Output() save = new EventEmitter<void>();
   @Input() showSave = false;
+  @Input() open = false;
+  @Output() closeNav = new EventEmitter<void>();
+  @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
 
   onFileChange(event: Event) {
     const input = event.target as HTMLInputElement;
@@ -20,7 +30,11 @@ export class NavbarComponent {
     }
   }
 
-  onSave() {
-    this.save.emit();
+  triggerFileDialog() {
+    this.fileInput?.nativeElement.click();
+  }
+
+  onCloseNav() {
+    this.closeNav.emit();
   }
 }

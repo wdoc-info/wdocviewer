@@ -1,0 +1,22 @@
+<header class="topbar">
+  <button
+    type="button"
+    class="hamburger"
+    (click)="onToggleNav()"
+    aria-label="Toggle navigation"
+    [attr.aria-expanded]="navOpen"
+  >
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+  <div class="topbar-title">WDOC viewer</div>
+  <button
+    class="topbar-save"
+    type="button"
+    (click)="onSave()"
+    [hidden]="!showSave"
+  >
+    Save
+  </button>
+</header>
