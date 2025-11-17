@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { HttpClient } from '@angular/common/http';
@@ -7,26 +7,38 @@ import JSZip from 'jszip';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { ViewerComponent } from '../viewer/viewer.component';
 import { TopbarComponent } from '../topbar/topbar.component';
+import { MatDrawerMode, MatSidenavModule } from '@angular/material/sidenav';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, NavbarComponent, ViewerComponent, TopbarComponent],
+  imports: [
+    CommonModule,
+    NavbarComponent,
+    ViewerComponent,
+    TopbarComponent,
+    MatSidenavModule,
+  ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
   htmlContent: SafeHtml | null = null;
   showSave = false;
   isNavOpen = false;
+  sidenavMode: MatDrawerMode = 'over';
   private originalArrayBuffer: ArrayBuffer | null = null;
+  private resizeListener?: () => void;
+  private isDesktop = false;
   @ViewChild(ViewerComponent) viewer!: ViewerComponent;
 
   constructor(private sanitizer: DomSanitizer, private http: HttpClient) {}
 
   ngOnInit(): void {
     if (typeof window !== 'undefined') {
-      this.isNavOpen = window.innerWidth >= 992;
+      this.applyResponsiveLayout(window.innerWidth);
+      this.resizeListener = () => this.applyResponsiveLayout(window.innerWidth);
+      window.addEventListener('resize', this.resizeListener);
     }
     if (typeof window === 'undefined' || !window.location) {
       return;
@@ -46,6 +58,12 @@ export class AppComponent implements OnInit {
     void this.fetchAndLoadWdoc(trimmedUrl);
   }
 
+  ngOnDestroy(): void {
+    if (typeof window !== 'undefined' && this.resizeListener) {
+      window.removeEventListener('resize', this.resizeListener);
+    }
+  }
+
   onFileSelected(file: File) {
     const reader = new FileReader();
     reader.onload = async (e: ProgressEvent<FileReader>) => {
@@ -63,6 +81,15 @@ export class AppComponent implements OnInit {
 
   closeNav() {
     this.isNavOpen = false;
+  }
+
+  private applyResponsiveLayout(width: number) {
+    const isDesktop = width >= 992;
+    this.sidenavMode = isDesktop ? 'side' : 'over';
+    if (isDesktop !== this.isDesktop) {
+      this.isDesktop = isDesktop;
+      this.isNavOpen = isDesktop;
+    }
   }
 
   private async fetchAndLoadWdoc(url: string): Promise<void> {
