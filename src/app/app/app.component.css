@@ -27,6 +27,22 @@ app-viewer {
 }
 
 @media print {
+  :host,
+  .app-shell,
+  mat-sidenav-container,
+  mat-sidenav-content,
+  .mat-drawer-content,
+  .main-content,
+  app-viewer {
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+  }
+
+  app-viewer {
+    flex: initial;
+  }
+
   .app-sidenav,
   mat-sidenav {
     display: none !important;

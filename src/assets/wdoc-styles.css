@@ -49,11 +49,11 @@ wdoc-page {
   }
 
   wdoc-page {
-    width: 100%;
-    max-width: 793.8px;
+    width: 793.8px;
+    max-width: none;
     min-height: 1122px;
     box-shadow: none;
-    margin: 0 auto;
+    margin: 0;
     page-break-after: always;
     page-break-inside: avoid;
     break-after: page;
