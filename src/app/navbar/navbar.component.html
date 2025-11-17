@@ -1,5 +1,26 @@
-<nav>
-  <div class="title">WDOC viewer</div>
-  <input type="file" (change)="onFileChange($event)" accept=".wdoc" />
-  <button *ngIf="showSave" (click)="onSave()">Save</button>
-</nav>
+<div class="sidenav-backdrop" *ngIf="open" (click)="onCloseNav()"></div>
+<aside class="sidenav" [class.sidenav-open]="open" aria-label="Document navigation">
+  <header class="sidenav-header">
+    <div class="title">Navigation</div>
+    <button class="close-btn" (click)="onCloseNav()" aria-label="Close navigation">
+      &times;
+    </button>
+  </header>
+  <div class="nav-content">
+    <button type="button" class="nav-btn" (click)="triggerFileDialog()">
+      Open .wdoc file
+    </button>
+    <input
+      #fileInput
+      type="file"
+      class="sr-only"
+      (change)="onFileChange($event)"
+      accept=".wdoc"
+      aria-hidden="true"
+      tabindex="-1"
+    />
+    <button *ngIf="showSave" (click)="onSave()" class="save-btn">
+      Save form data
+    </button>
+  </div>
+</aside>

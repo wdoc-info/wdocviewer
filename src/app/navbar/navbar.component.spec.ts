@@ -36,7 +36,9 @@ describe('NavbarComponent', () => {
     let called = false;
     component.save.subscribe(() => (called = true));
 
-    const button = fixture.nativeElement.querySelector('button');
+    const button = fixture.nativeElement.querySelector(
+      '.save-btn'
+    ) as HTMLButtonElement;
     button.click();
 
     expect(called).toBeTrue();

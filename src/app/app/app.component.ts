@@ -1,27 +1,33 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { HttpClient } from '@angular/common/http';
 import { lastValueFrom } from 'rxjs';
 import JSZip from 'jszip';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { ViewerComponent } from '../viewer/viewer.component';
+import { TopbarComponent } from '../topbar/topbar.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [NavbarComponent, ViewerComponent],
+  imports: [CommonModule, NavbarComponent, ViewerComponent, TopbarComponent],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
 })
 export class AppComponent implements OnInit {
   htmlContent: SafeHtml | null = null;
   showSave = false;
+  isNavOpen = false;
   private originalArrayBuffer: ArrayBuffer | null = null;
   @ViewChild(ViewerComponent) viewer!: ViewerComponent;
 
   constructor(private sanitizer: DomSanitizer, private http: HttpClient) {}
 
   ngOnInit(): void {
+    if (typeof window !== 'undefined') {
+      this.isNavOpen = window.innerWidth >= 992;
+    }
     if (typeof window === 'undefined' || !window.location) {
       return;
     }
@@ -49,6 +55,14 @@ export class AppComponent implements OnInit {
       }
     };
     reader.readAsArrayBuffer(file);
+  }
+
+  toggleNav() {
+    this.isNavOpen = !this.isNavOpen;
+  }
+
+  closeNav() {
+    this.isNavOpen = false;
   }
 
   private async fetchAndLoadWdoc(url: string): Promise<void> {

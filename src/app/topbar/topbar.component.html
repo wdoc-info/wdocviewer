@@ -1,0 +1,17 @@
+<header class="topbar">
+  <button
+    type="button"
+    class="hamburger"
+    (click)="onToggleNav()"
+    aria-label="Toggle navigation"
+    [attr.aria-expanded]="navOpen"
+  >
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+  <div class="topbar-title">WDOC viewer</div>
+  <button *ngIf="showSave" class="topbar-save" type="button" (click)="onSave()">
+    Save
+  </button>
+</header>
