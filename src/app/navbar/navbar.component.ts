@@ -1,4 +1,11 @@
-import { Component, ElementRef, EventEmitter, Output, Input, ViewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  EventEmitter,
+  Output,
+  Input,
+  ViewChild,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -25,10 +32,6 @@ export class NavbarComponent {
 
   triggerFileDialog() {
     this.fileInput?.nativeElement.click();
-  }
-
-  onSave() {
-    this.save.emit();
   }
 
   onCloseNav() {

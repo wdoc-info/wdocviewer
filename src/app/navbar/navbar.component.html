@@ -1,8 +1,16 @@
 <div class="sidenav-backdrop" *ngIf="open" (click)="onCloseNav()"></div>
-<aside class="sidenav" [class.sidenav-open]="open" aria-label="Document navigation">
+<aside
+  class="sidenav"
+  [class.sidenav-open]="open"
+  aria-label="Document navigation"
+>
   <header class="sidenav-header">
     <div class="title">Navigation</div>
-    <button class="close-btn" (click)="onCloseNav()" aria-label="Close navigation">
+    <button
+      class="close-btn"
+      (click)="onCloseNav()"
+      aria-label="Close navigation"
+    >
       &times;
     </button>
   </header>
@@ -19,8 +27,5 @@
       aria-hidden="true"
       tabindex="-1"
     />
-    <button *ngIf="showSave" (click)="onSave()" class="save-btn">
-      Save form data
-    </button>
   </div>
 </aside>

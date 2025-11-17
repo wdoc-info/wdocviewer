@@ -11,7 +11,12 @@
     <span></span>
   </button>
   <div class="topbar-title">WDOC viewer</div>
-  <button *ngIf="showSave" class="topbar-save" type="button" (click)="onSave()">
+  <button
+    class="topbar-save"
+    type="button"
+    (click)="onSave()"
+    [hidden]="!showSave"
+  >
     Save
   </button>
 </header>
