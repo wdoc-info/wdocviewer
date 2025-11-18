@@ -25,6 +25,13 @@ export type HtmlPageSplitterOptions = {
   maxNumberOfPages?: number;
 
   /**
+   * Optional explicit page height in pixels. When provided, the splitter will
+   * treat this as the maximum height before moving overflowing content to the
+   * next page instead of relying on the container's computed height.
+   */
+  pageHeight?: number;
+
+  /**
    * Whether to enable debugging mode.
    * In debugging mode, you can wait between split operations to visualize the process.
    */

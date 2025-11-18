@@ -44,6 +44,7 @@ export class AppComponent implements OnInit, OnDestroy {
       if (this.paginationContainer) {
         this.htmlPageSplitter = new HtmlPageSplitter({
           container: this.paginationContainer,
+          pageHeight: 1122,
         });
       }
     }
@@ -457,10 +458,11 @@ export class AppComponent implements OnInit, OnDestroy {
     container.style.top = '0';
     container.style.left = '0';
     container.style.width = '793.8px';
-    container.style.height = '1122px';
     container.style.padding = '20px';
     container.style.boxSizing = 'border-box';
-    container.style.overflow = 'hidden';
+    container.style.minHeight = '1122px';
+    container.style.height = 'auto';
+    container.style.overflow = 'visible';
     container.style.zIndex = '-1';
     document.body.appendChild(container);
     return container;

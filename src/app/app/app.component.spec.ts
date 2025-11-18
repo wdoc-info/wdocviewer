@@ -60,6 +60,29 @@ describe('AppComponent', () => {
     expect(doc.querySelectorAll('wdoc-page').length).toBeGreaterThan(0);
   });
 
+  it('splits long documents across multiple pages when needed', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const longBody = Array.from({ length: 200 })
+      .map((_, idx) => `<p>Paragraph ${idx}</p>`)
+      .join('');
+    const html = `<html><head></head><body>${longBody}</body></html>`;
+    const zip = new JSZip();
+
+    const promise = app.processHtml(zip, html);
+    const req = httpMock.expectOne('assets/wdoc-styles.css');
+    req.flush('');
+
+    const result = await promise;
+    httpMock.verify();
+
+    const doc = new DOMParser().parseFromString(result, 'text/html');
+    const pages = doc.querySelectorAll('wdoc-page');
+    expect(pages.length).toBeGreaterThan(1);
+  });
+
   it('should mark showSave when form input changes', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance as any;

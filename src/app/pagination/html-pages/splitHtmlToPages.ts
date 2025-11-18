@@ -48,7 +48,8 @@ export async function* splitHtmlToPages(
 
   // the maximum height of the container is the maximum height of the page.
   // when the container height is bigger than the page height, we add a new page.
-  const pageHeight = container.clientHeight;
+  const rawPageHeight = options.pageHeight ?? container.clientHeight;
+  const pageHeight = rawPageHeight > 0 ? rawPageHeight : 1;
 
   if (options.debug) {
     console.log('pageHeight', pageHeight);
