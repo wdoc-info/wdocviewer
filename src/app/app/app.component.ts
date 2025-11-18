@@ -4,6 +4,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { HttpClient } from '@angular/common/http';
 import { lastValueFrom } from 'rxjs';
 import JSZip from 'jszip';
+import { HtmlPageSplitter } from '../pagination/html-pages/HtmlPageSplitter';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { ViewerComponent } from '../viewer/viewer.component';
 import { TopbarComponent } from '../topbar/topbar.component';
@@ -33,9 +34,21 @@ export class AppComponent implements OnInit, OnDestroy {
   private beforePrintListener?: () => void;
   private afterPrintListener?: () => void;
   private wasNavOpenBeforePrint = false;
+  private htmlPageSplitter?: HtmlPageSplitter;
+  private paginationContainer?: HTMLElement;
   @ViewChild(ViewerComponent) viewer!: ViewerComponent;
 
-  constructor(private sanitizer: DomSanitizer, private http: HttpClient) {}
+  constructor(private sanitizer: DomSanitizer, private http: HttpClient) {
+    if (typeof document !== 'undefined') {
+      this.paginationContainer = this.createPaginationContainer();
+      if (this.paginationContainer) {
+        this.htmlPageSplitter = new HtmlPageSplitter({
+          container: this.paginationContainer,
+          pageHeight: 1122,
+        });
+      }
+    }
+  }
 
   ngOnInit(): void {
     if (typeof window !== 'undefined') {
@@ -82,6 +95,10 @@ export class AppComponent implements OnInit, OnDestroy {
         window.removeEventListener('afterprint', this.afterPrintListener);
       }
     }
+    if (this.paginationContainer?.parentElement) {
+      this.paginationContainer.remove();
+    }
+    this.htmlPageSplitter?.abort();
   }
 
   onFileSelected(file: File) {
@@ -236,7 +253,6 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // 1. Remove external script tags with a "src" attribute and all iframes.
     const scripts = doc.querySelectorAll('script');
-    console.log('scripts', scripts);
     scripts.forEach((script) => script.remove());
 
     // 2.  Remove all iframe elements
@@ -385,38 +401,71 @@ export class AppComponent implements OnInit, OnDestroy {
    * TODO: doesn t work, the example overflowing_text doesn t display on multiple pages
    */
   private async paginateContent(doc: Document): Promise<void> {
-    const A4PageHeight = 1122; // Approximate A4 height in pixels.
-    const body = doc.body;
-    const nodes = Array.from(body.childNodes);
-    body.innerHTML = '';
+    if (!this.htmlPageSplitter) {
+      console.warn('HtmlPageSplitter is not available; skipping pagination.');
+      return;
+    }
 
-    // Create and attach the page container immediately.
+    const body = doc.body;
+    const contentNodes = Array.from(body.childNodes).filter((node) => {
+      return !(
+        node.nodeType === Node.ELEMENT_NODE &&
+        (node as Element).tagName.toLowerCase() === 'style'
+      );
+    });
+
+    if (contentNodes.length === 0) {
+      return;
+    }
+
+    const wrapper = doc.createElement('div');
+    contentNodes.forEach((node) => {
+      wrapper.appendChild(node.cloneNode(true));
+      node.remove();
+    });
+
     const wdocContainer = doc.createElement('wdoc-container');
     body.appendChild(wdocContainer);
 
-    // Function to create a new page wrapper and page.
-    const createNewPage = (): Element => {
-      const page = doc.createElement('wdoc-page');
-      wdocContainer.appendChild(page);
-      return page;
-    };
-
-    // Create the first page.
-    let currentPage = createNewPage();
-
-    nodes.forEach((node) => {
-      currentPage.appendChild(node);
-      // Force a reflow so the browser updates layout.
-      const height = (currentPage as HTMLElement).offsetHeight;
-      console.log('offsetHeight', height, A4PageHeight);
-
-      // If content exceeds A4 page height, move the node to a new page.
-      if (height > A4PageHeight) {
-        currentPage.removeChild(node);
-        currentPage = createNewPage();
-        currentPage.appendChild(node);
+    let hasPages = false;
+    for await (const pageHtml of this.htmlPageSplitter.split(
+      wrapper.innerHTML
+    )) {
+      const trimmed = pageHtml.trim();
+      if (!trimmed) {
+        continue;
       }
-    });
+      const page = doc.createElement('wdoc-page');
+      page.innerHTML = pageHtml;
+      wdocContainer.appendChild(page);
+      hasPages = true;
+    }
+
+    if (!hasPages) {
+      const emptyPage = doc.createElement('wdoc-page');
+      wdocContainer.appendChild(emptyPage);
+    }
+  }
+
+  private createPaginationContainer(): HTMLElement | undefined {
+    if (typeof document === 'undefined') {
+      return undefined;
+    }
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.visibility = 'hidden';
+    container.style.pointerEvents = 'none';
+    container.style.top = '0';
+    container.style.left = '0';
+    container.style.width = '793.8px';
+    container.style.padding = '20px';
+    container.style.boxSizing = 'border-box';
+    container.style.minHeight = '1122px';
+    container.style.height = 'auto';
+    container.style.overflow = 'visible';
+    container.style.zIndex = '-1';
+    document.body.appendChild(container);
+    return container;
   }
 
   private async populateFormsFromZip(zip: JSZip, doc: Document): Promise<void> {
