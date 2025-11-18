@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }) => {
 
 test('internal_script example strips scripts', async ({ page }) => {
   await loadExample(page, 'internal_script');
-  await expect(page.locator('h1')).toHaveText('Internal script');
+  await expect(page.locator('wdoc-container h1')).toHaveText('Internal script');
   await expect(page.locator('wdoc-container script')).toHaveCount(0);
 });
 

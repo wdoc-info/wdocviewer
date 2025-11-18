@@ -23,6 +23,11 @@ test('already_paginated keeps pages', async ({ page }) => {
   await expect(page.locator('wdoc-page')).toHaveCount(2);
 });
 
+test('not_paginated creates multiple pages', async ({ page }) => {
+  await loadExample(page, 'not_paginated');
+  await expect(page.locator('wdoc-page')).toHaveCount(2);
+});
+
 test('form example displays form', async ({ page }) => {
   await loadExample(page, 'form');
   await expect(page.locator('wdoc-page form')).toHaveCount(1);
