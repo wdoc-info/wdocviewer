@@ -21,14 +21,17 @@ test('internal_script example strips scripts', async ({ page }) => {
 
 test('internal_image example embeds images', async ({ page }) => {
   await loadExample(page, 'internal_image');
-  const src = await page.locator('img').getAttribute('src');
+  const src = await page.locator('wdoc-page img').getAttribute('src');
   expect(src).toMatch(/^data:image\//);
 });
 
 test('external_image example loads after confirm', async ({ page }) => {
   page.once('dialog', (dialog) => dialog.accept());
   await loadExample(page, 'external_image');
-  await expect(page.locator('img')).toHaveAttribute('src', /logo.png/);
+  await expect(page.locator('wdoc-page img')).toHaveAttribute(
+    'src',
+    /logo.png/
+  );
 });
 
 test('image_changed example warns about signature mismatch', async ({

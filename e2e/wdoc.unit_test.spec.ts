@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }) => {
 
 test('hello_world example renders', async ({ page }) => {
   await loadExample(page, 'hello_world');
-  await expect(page.locator('h1')).toHaveText('Hello, World!');
+  await expect(page.locator('wdoc-page h1')).toHaveText('Hello, World!');
 });
 
 test('already_paginated keeps pages', async ({ page }) => {
@@ -25,7 +25,7 @@ test('already_paginated keeps pages', async ({ page }) => {
 
 test('form example displays form', async ({ page }) => {
   await loadExample(page, 'form');
-  await expect(page.locator('form')).toHaveCount(1);
+  await expect(page.locator('wdoc-page form')).toHaveCount(1);
 });
 
 test('url query parameter loads remote .wdoc', async ({ page }) => {
