@@ -6,6 +6,26 @@ import {
 import { AppComponent } from './app.component';
 import JSZip from 'jszip';
 
+const createFileList = (files: File[]): FileList => {
+  const list: Record<number, File> & {
+    length: number;
+    item: (index: number) => File | null;
+    [Symbol.iterator]: () => IterableIterator<File>;
+  } = {
+    length: files.length,
+    item: (index: number) => files[index] ?? null,
+    [Symbol.iterator]: function* () {
+      for (const file of files) {
+        yield file;
+      }
+    },
+  };
+  files.forEach((file, index) => {
+    list[index] = file;
+  });
+  return list as unknown as FileList;
+};
+
 describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -199,6 +219,44 @@ describe('AppComponent', () => {
     expect(attachmentEntry).toBeTruthy();
     expect(attachmentEntry.role).toBe('form_attachment');
     expect(attachmentEntry.mime).toBe('text/plain');
+  });
+
+  it('shows the drop overlay for dragged files and loads .wdoc files on drop', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+
+    const wdocFile = new File(['demo'], 'sample.wdoc');
+    const fileList = createFileList([wdocFile]);
+    const dataTransfer = {
+      types: ['Files'],
+      files: fileList,
+      dropEffect: 'none',
+    } as unknown as DataTransfer;
+
+    const preventDefault = jasmine.createSpy('preventDefault');
+    app.onDragEnter({ preventDefault, dataTransfer } as unknown as DragEvent);
+
+    expect(preventDefault).toHaveBeenCalled();
+    expect(app.showDropOverlay).toBeTrue();
+
+    const dropPreventDefault = jasmine.createSpy('dropPreventDefault');
+    const selectSpy = spyOn(app, 'onFileSelected');
+    app.onDrop(
+      { preventDefault: dropPreventDefault, dataTransfer } as unknown as DragEvent
+    );
+
+    expect(dropPreventDefault).toHaveBeenCalled();
+    expect(selectSpy).toHaveBeenCalledWith(wdocFile);
+    expect(app.showDropOverlay).toBeFalse();
+
+    const nonFilePreventDefault = jasmine.createSpy('nonFilePreventDefault');
+    app.onDragEnter({
+      preventDefault: nonFilePreventDefault,
+      dataTransfer: { types: ['text/plain'] } as unknown as DataTransfer,
+    } as unknown as DragEvent);
+
+    expect(nonFilePreventDefault).not.toHaveBeenCalled();
+    expect(app.showDropOverlay).toBeFalse();
   });
 
   it('should populate forms from wdoc-form folder', async () => {
