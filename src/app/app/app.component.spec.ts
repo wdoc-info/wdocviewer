@@ -60,13 +60,13 @@ describe('AppComponent', () => {
     expect(result).toContain('ok');
   });
 
-  it('updates documentTitle from a header element', async () => {
+  it('updates documentTitle from the head title element', async () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
     const httpMock = TestBed.inject(HttpTestingController);
 
     const html =
-      '<html><head><title>Fallback</title></head><body><header><title>Passport Application</title></header></body></html>';
+      '<html><head><title>Passport Application</title></head><body><main>Content</main></body></html>';
     const zip = new JSZip();
 
     const promise = app.processHtml(zip, html);
@@ -79,13 +79,13 @@ describe('AppComponent', () => {
     expect(app.documentTitle).toBe('Passport Application');
   });
 
-  it('falls back to the default title when no header title is present', async () => {
+  it('falls back to the default title when no head title is present', async () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
     const httpMock = TestBed.inject(HttpTestingController);
 
     const html =
-      '<html><head><title>Visa Form</title></head><body><main>No header here</main></body></html>';
+      '<html><head></head><body><main>No title here</main></body></html>';
     const zip = new JSZip();
 
     const promise = app.processHtml(zip, html);

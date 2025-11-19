@@ -471,13 +471,13 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   private updateDocumentTitle(doc: Document): void {
-    const title = this.extractHeaderTitle(doc);
+    const title = this.extractHeadTitle(doc);
     this.documentTitle = title && title.length > 0 ? title : this.defaultTitle;
   }
 
-  private extractHeaderTitle(doc: Document): string | null {
-    const headerTitle = doc.querySelector('header title');
-    const titleText = headerTitle?.textContent?.trim();
+  private extractHeadTitle(doc: Document): string | null {
+    const headTitle = doc.querySelector('head title');
+    const titleText = headTitle?.textContent?.trim();
     return titleText && titleText.length > 0 ? titleText : null;
   }
 
