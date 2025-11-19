@@ -1,4 +1,10 @@
-import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import {
+  Component,
+  HostListener,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { HttpClient } from '@angular/common/http';
@@ -28,6 +34,7 @@ export class AppComponent implements OnInit, OnDestroy {
   showSave = false;
   isNavOpen = false;
   sidenavMode: MatDrawerMode = 'over';
+  showDropOverlay = false;
   private originalArrayBuffer: ArrayBuffer | null = null;
   private resizeListener?: () => void;
   private isDesktop = false;
@@ -36,6 +43,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private wasNavOpenBeforePrint = false;
   private htmlPageSplitter?: HtmlPageSplitter;
   private paginationContainer?: HTMLElement;
+  private dragDepth = 0;
   @ViewChild(ViewerComponent) viewer!: ViewerComponent;
 
   constructor(private sanitizer: DomSanitizer, private http: HttpClient) {
@@ -118,6 +126,70 @@ export class AppComponent implements OnInit, OnDestroy {
 
   closeNav() {
     this.isNavOpen = false;
+  }
+
+  @HostListener('document:dragenter', ['$event'])
+  onDragEnter(event: DragEvent) {
+    if (!this.containsFiles(event)) {
+      return;
+    }
+    event.preventDefault();
+    this.dragDepth++;
+    this.showDropOverlay = true;
+  }
+
+  @HostListener('document:dragover', ['$event'])
+  onDragOver(event: DragEvent) {
+    if (!this.containsFiles(event)) {
+      return;
+    }
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+    this.showDropOverlay = true;
+  }
+
+  @HostListener('document:dragleave', ['$event'])
+  onDragLeave(event: DragEvent) {
+    if (!this.containsFiles(event)) {
+      return;
+    }
+    event.preventDefault();
+    this.dragDepth = Math.max(0, this.dragDepth - 1);
+    if (this.dragDepth === 0) {
+      this.showDropOverlay = false;
+    }
+  }
+
+  @HostListener('document:drop', ['$event'])
+  onDrop(event: DragEvent) {
+    if (!this.containsFiles(event)) {
+      return;
+    }
+    event.preventDefault();
+    this.dragDepth = 0;
+    this.showDropOverlay = false;
+    const files = event.dataTransfer?.files;
+    if (!files?.length) {
+      return;
+    }
+    const wdocFile = Array.from(files).find((file) =>
+      file.name.toLowerCase().endsWith('.wdoc')
+    );
+    if (!wdocFile) {
+      alert('Please drop a .wdoc file.');
+      return;
+    }
+    this.onFileSelected(wdocFile);
+  }
+
+  private containsFiles(event: DragEvent): boolean {
+    const types = event.dataTransfer?.types;
+    if (!types) {
+      return false;
+    }
+    return Array.from(types).includes('Files');
   }
 
   private applyResponsiveLayout(width: number) {
