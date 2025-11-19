@@ -30,4 +30,13 @@ describe('TopbarComponent', () => {
     btn.click();
     expect(component.save.emit).toHaveBeenCalled();
   });
+
+  it('renders the provided title', () => {
+    component.title = 'My Document';
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement.querySelector(
+      '.topbar-title'
+    );
+    expect(el.textContent?.trim()).toBe('My Document');
+  });
 });

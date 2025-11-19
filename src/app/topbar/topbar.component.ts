@@ -11,6 +11,7 @@ import { CommonModule } from '@angular/common';
 export class TopbarComponent {
   @Input() showSave = false;
   @Input() navOpen = false;
+  @Input() title = 'WDOC viewer';
   @Output() toggleNav = new EventEmitter<void>();
   @Output() save = new EventEmitter<void>();
 

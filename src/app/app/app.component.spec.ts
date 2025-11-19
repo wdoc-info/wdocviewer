@@ -60,6 +60,44 @@ describe('AppComponent', () => {
     expect(result).toContain('ok');
   });
 
+  it('updates documentTitle from a header element', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const html =
+      '<html><head><title>Fallback</title></head><body><header><title>Passport Application</title></header></body></html>';
+    const zip = new JSZip();
+
+    const promise = app.processHtml(zip, html);
+    const req = httpMock.expectOne('assets/wdoc-styles.css');
+    req.flush('');
+
+    await promise;
+    httpMock.verify();
+
+    expect(app.documentTitle).toBe('Passport Application');
+  });
+
+  it('falls back to the default title when no header title is present', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const html =
+      '<html><head><title>Visa Form</title></head><body><main>No header here</main></body></html>';
+    const zip = new JSZip();
+
+    const promise = app.processHtml(zip, html);
+    const req = httpMock.expectOne('assets/wdoc-styles.css');
+    req.flush('');
+
+    await promise;
+    httpMock.verify();
+
+    expect(app.documentTitle).toBe('WDOC viewer');
+  });
+
   it('paginates HTML without wdoc-page elements', async () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
