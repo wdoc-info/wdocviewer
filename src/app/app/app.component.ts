@@ -35,6 +35,8 @@ export class AppComponent implements OnInit, OnDestroy {
   isNavOpen = false;
   sidenavMode: MatDrawerMode = 'over';
   showDropOverlay = false;
+  private readonly defaultTitle = 'WDOC viewer';
+  documentTitle = this.defaultTitle;
   private originalArrayBuffer: ArrayBuffer | null = null;
   private resizeListener?: () => void;
   private isDesktop = false;
@@ -322,6 +324,7 @@ export class AppComponent implements OnInit, OnDestroy {
   async processHtml(zip: JSZip, html: string): Promise<string> {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
+    this.updateDocumentTitle(doc);
 
     // 1. Remove external script tags with a "src" attribute and all iframes.
     const scripts = doc.querySelectorAll('script');
@@ -465,6 +468,17 @@ export class AppComponent implements OnInit, OnDestroy {
 
     await this.populateFormsFromZip(zip, doc);
     return doc.documentElement.outerHTML;
+  }
+
+  private updateDocumentTitle(doc: Document): void {
+    const title = this.extractHeadTitle(doc);
+    this.documentTitle = title && title.length > 0 ? title : this.defaultTitle;
+  }
+
+  private extractHeadTitle(doc: Document): string | null {
+    const headTitle = doc.querySelector('head title');
+    const titleText = headTitle?.textContent?.trim();
+    return titleText && titleText.length > 0 ? titleText : null;
   }
 
   /**
