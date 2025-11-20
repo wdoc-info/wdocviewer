@@ -1,0 +1,9 @@
+<svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">WDOC logo</title>
+  <desc id="desc">Stylized document with a folded corner and the letter W inside</desc>
+  <rect x="10" y="6" width="60" height="68" rx="10" fill="#0C4A6E"/>
+  <path d="M50 6H57L70 18.5V24H60C54.4772 24 50 19.5228 50 14V6Z" fill="#0EA5E9"/>
+  <path d="M20 27C20 23.6863 22.6863 21 26 21H54C57.3137 21 60 23.6863 60 27V58C60 61.3137 57.3137 64 54 64H26C22.6863 64 20 61.3137 20 58V27Z" fill="#0EA5E9"/>
+  <path d="M26 32L33 53L40 37.5L47 53L54 32H48.5L43.5 45.5L38.5 32H32.5L28 45.5L26 32Z" fill="#F8FAFC"/>
+  <rect x="24" y="14" width="20" height="6" rx="1.5" fill="#F8FAFC" opacity="0.85"/>
+</svg>
