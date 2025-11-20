@@ -1,9 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ViewerComponent } from './viewer.component';
 
 describe('ViewerComponent', () => {
   let fixture: ComponentFixture<ViewerComponent>;
   let component: ViewerComponent;
+  let sanitizer: DomSanitizer;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -12,6 +14,7 @@ describe('ViewerComponent', () => {
 
     fixture = TestBed.createComponent(ViewerComponent);
     component = fixture.componentInstance;
+    sanitizer = TestBed.inject(DomSanitizer);
   });
 
   it('should create', () => {
@@ -26,13 +29,14 @@ describe('ViewerComponent', () => {
   });
 
   it('applies zoom to the content container', async () => {
-    component.htmlContent = '<p>zoom</p>' as any;
+    const content: SafeHtml = sanitizer.bypassSecurityTrustHtml(
+      '<wdoc-container><wdoc-page>zoom</wdoc-page></wdoc-container>'
+    );
+    component.htmlContent = content;
     component.zoom = 150;
     fixture.detectChanges();
     await fixture.whenStable();
-    const content = fixture.nativeElement.querySelector(
-      '.viewer-content'
-    ) as HTMLElement;
-    expect(content.style.transform).toContain('1.5');
+    const page = fixture.nativeElement.querySelector('wdoc-page') as HTMLElement;
+    expect(page.style.transform).toContain('1.5');
   });
 });

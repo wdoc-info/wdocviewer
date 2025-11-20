@@ -38,7 +38,7 @@ export class AppComponent implements OnInit, OnDestroy {
   zoom = 100;
   private readonly defaultTitle = 'WDOC viewer';
   private readonly minZoom = 25;
-  private readonly maxZoom = 400;
+  private readonly maxZoom = 100;
   documentTitle = this.defaultTitle;
   private originalArrayBuffer: ArrayBuffer | null = null;
   private resizeListener?: () => void;

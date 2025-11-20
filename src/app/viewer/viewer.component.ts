@@ -52,6 +52,22 @@ export class ViewerComponent implements AfterViewInit, OnChanges {
       return;
     }
     const scale = Math.max(10, this.zoom) / 100;
-    container.style.transform = `scale(${scale})`;
+    container.style.setProperty('--viewer-scale', `${scale}`);
+
+    const pages = Array.from(
+      container.querySelectorAll('wdoc-page')
+    ) as HTMLElement[];
+
+    if (pages.length === 0) {
+      container.style.transform = `scale(${scale})`;
+      container.style.transformOrigin = 'top center';
+      return;
+    }
+
+    container.style.transform = '';
+    pages.forEach((page) => {
+      page.style.transformOrigin = 'top center';
+      page.style.transform = `scale(${scale})`;
+    });
   }
 }
