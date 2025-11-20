@@ -34,7 +34,7 @@
 }
 
 .brand-logo {
-  width: 32px;
+  width: 22px;
   height: 32px;
 }
 
@@ -52,7 +52,6 @@
   flex-direction: column;
   gap: 1rem;
 }
-
 
 .nav-btn {
   background-color: #fff;
