@@ -37,6 +37,6 @@ describe('ViewerComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     const page = fixture.nativeElement.querySelector('wdoc-page') as HTMLElement;
-    expect(page.style.transform).toContain('1.5');
+    expect(page.style.zoom).toBe('1.5');
   });
 });

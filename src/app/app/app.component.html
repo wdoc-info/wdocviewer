@@ -20,6 +20,7 @@
         [navOpen]="isNavOpen"
         [title]="documentTitle"
         [zoom]="zoom"
+        [hasDocument]="!!htmlContent"
         (toggleNav)="toggleNav()"
         (save)="onSaveForms()"
         (zoomChange)="onZoomChange($event)"

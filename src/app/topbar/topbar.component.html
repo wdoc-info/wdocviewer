@@ -12,36 +12,38 @@
   </button>
   <div class="topbar-title" [attr.title]="title">{{ title }}</div>
   <div class="topbar-actions">
-    <div class="zoom-controls" aria-label="Zoom controls">
-      <button
-        type="button"
-        class="zoom-button"
-        (click)="onZoomStep(-10)"
-        aria-label="Zoom out"
-      >
-        −
-      </button>
-      <label class="zoom-input" aria-label="Zoom percentage">
-        <input
-          type="text"
-          inputmode="numeric"
-          pattern="[0-9]*"
-          [value]="zoomValue"
-          (input)="onZoomInput($event)"
-          (blur)="onZoomCommit()"
-          (keydown.enter)="onZoomCommit()"
-        />
-        <span>%</span>
-      </label>
-      <button
-        type="button"
-        class="zoom-button"
-        (click)="onZoomStep(10)"
-        aria-label="Zoom in"
-      >
-        +
-      </button>
-    </div>
+    @if (hasDocument) {
+      <div class="zoom-controls" aria-label="Zoom controls">
+        <button
+          type="button"
+          class="zoom-button"
+          (click)="onZoomStep(-10)"
+          aria-label="Zoom out"
+        >
+          −
+        </button>
+        <label class="zoom-input" aria-label="Zoom percentage">
+          <input
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            [value]="zoomValue"
+            (input)="onZoomInput($event)"
+            (blur)="onZoomCommit()"
+            (keydown.enter)="onZoomCommit()"
+          />
+          <span>%</span>
+        </label>
+        <button
+          type="button"
+          class="zoom-button"
+          (click)="onZoomStep(10)"
+          aria-label="Zoom in"
+        >
+          +
+        </button>
+      </div>
+    }
     <button
       class="topbar-save"
       type="button"

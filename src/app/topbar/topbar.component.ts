@@ -20,6 +20,7 @@ export class TopbarComponent implements OnChanges {
   @Input() navOpen = false;
   @Input() title = 'WDOC viewer';
   @Input() zoom = 100;
+  @Input() hasDocument = false;
   @Output() toggleNav = new EventEmitter<void>();
   @Output() save = new EventEmitter<void>();
   @Output() zoomChange = new EventEmitter<number>();

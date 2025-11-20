@@ -41,6 +41,7 @@ describe('TopbarComponent', () => {
   });
 
   it('emits zoomChange when zoom buttons are used', () => {
+    component.hasDocument = true;
     spyOn(component.zoomChange, 'emit');
     fixture.detectChanges();
     const buttons = fixture.nativeElement.querySelectorAll('.zoom-button');
@@ -49,6 +50,7 @@ describe('TopbarComponent', () => {
   });
 
   it('emits parsed zoom value from input on commit', () => {
+    component.hasDocument = true;
     spyOn(component.zoomChange, 'emit');
     fixture.detectChanges();
     const input: HTMLInputElement = fixture.nativeElement.querySelector(

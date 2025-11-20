@@ -306,6 +306,9 @@ export class AppComponent implements OnInit, OnDestroy {
       const processedHtml = await this.processHtml(zip, html);
       // Bypass Angular's security after processing the content
       this.htmlContent = this.sanitizer.bypassSecurityTrustHtml(processedHtml);
+      if (!this.isDesktop) {
+        this.isNavOpen = false;
+      }
       setTimeout(() => {
         this.attachFormListeners();
         this.fitContentToViewport(true);

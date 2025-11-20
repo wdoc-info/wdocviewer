@@ -20,5 +20,6 @@
   .viewer-content,
   .viewer-content wdoc-page {
     transform: none !important;
+    zoom: 1 !important;
   }
 }

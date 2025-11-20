@@ -59,15 +59,17 @@ export class ViewerComponent implements AfterViewInit, OnChanges {
     ) as HTMLElement[];
 
     if (pages.length === 0) {
-      container.style.transform = `scale(${scale})`;
-      container.style.transformOrigin = 'top center';
+      container.style.zoom = `${scale}`;
+      container.style.transform = '';
       return;
     }
 
+    container.style.zoom = '';
     container.style.transform = '';
     pages.forEach((page) => {
+      page.style.transform = '';
       page.style.transformOrigin = 'top center';
-      page.style.transform = `scale(${scale})`;
+      page.style.zoom = `${scale}`;
     });
   }
 }
