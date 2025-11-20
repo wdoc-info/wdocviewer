@@ -24,4 +24,15 @@ describe('ViewerComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('hello');
   });
+
+  it('applies zoom to the content container', async () => {
+    component.htmlContent = '<p>zoom</p>' as any;
+    component.zoom = 150;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const content = fixture.nativeElement.querySelector(
+      '.viewer-content'
+    ) as HTMLElement;
+    expect(content.style.transform).toContain('1.5');
+  });
 });

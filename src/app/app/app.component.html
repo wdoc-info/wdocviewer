@@ -19,10 +19,12 @@
         [showSave]="showSave"
         [navOpen]="isNavOpen"
         [title]="documentTitle"
+        [zoom]="zoom"
         (toggleNav)="toggleNav()"
         (save)="onSaveForms()"
+        (zoomChange)="onZoomChange($event)"
       ></app-topbar>
-      <app-viewer [htmlContent]="htmlContent"></app-viewer>
+      <app-viewer [htmlContent]="htmlContent" [zoom]="zoom"></app-viewer>
     </div>
   </mat-sidenav-content>
 </mat-sidenav-container>

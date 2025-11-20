@@ -1,1 +1,12 @@
-/* viewer specific styles can go here */
+.viewer-scroll {
+  height: 100%;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0.5rem;
+}
+
+.viewer-content {
+  transform-origin: top center;
+  transition: transform 0.12s ease-in-out;
+}

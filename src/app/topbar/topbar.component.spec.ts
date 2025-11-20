@@ -39,4 +39,24 @@ describe('TopbarComponent', () => {
     );
     expect(el.textContent?.trim()).toBe('My Document');
   });
+
+  it('emits zoomChange when zoom buttons are used', () => {
+    spyOn(component.zoomChange, 'emit');
+    fixture.detectChanges();
+    const buttons = fixture.nativeElement.querySelectorAll('.zoom-button');
+    (buttons[0] as HTMLButtonElement).click();
+    expect(component.zoomChange.emit).toHaveBeenCalledWith(90);
+  });
+
+  it('emits parsed zoom value from input on commit', () => {
+    spyOn(component.zoomChange, 'emit');
+    fixture.detectChanges();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector(
+      '.zoom-input input'
+    );
+    input.value = '150';
+    input.dispatchEvent(new Event('input'));
+    input.dispatchEvent(new Event('blur'));
+    expect(component.zoomChange.emit).toHaveBeenCalledWith(150);
+  });
 });
