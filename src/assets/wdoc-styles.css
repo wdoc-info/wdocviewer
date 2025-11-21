@@ -55,6 +55,11 @@ wdoc-content {
     background: transparent !important;
   }
 
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact; /* modern */
+  }
+
   wdoc-container {
     background: transparent;
     padding: 0;
