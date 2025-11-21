@@ -24,9 +24,16 @@ wdoc-page {
   margin-bottom: 20px;
 }
 
-wdoc-page > wdoc-footer,
-wdoc-page > doc-footer {
-  margin-top: auto;
+wdoc-header,
+wdoc-footer,
+doc-footer {
+  flex: 0 0 auto;
+  display: block;
+  width: 100%;
+}
+
+wdoc-content {
+  flex: 1 1 auto;
   display: block;
   width: 100%;
 }

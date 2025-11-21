@@ -121,6 +121,34 @@ describe('AppComponent', () => {
     expect(doc.querySelectorAll('wdoc-page').length).toBeGreaterThan(0);
   });
 
+  it('wraps paginated free-flow content inside wdoc-content', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const html = '<html><head></head><body><p>first</p><p>second</p></body></html>';
+    const zip = new JSZip();
+
+    const promise = app.processHtml(zip, html);
+    const req = httpMock.expectOne('assets/wdoc-styles.css');
+    req.flush('');
+
+    const result = await promise;
+    httpMock.verify();
+
+    const doc = new DOMParser().parseFromString(result, 'text/html');
+    const firstPage = doc.querySelector('wdoc-page');
+    expect(firstPage).not.toBeNull();
+    expect(
+      Array.from((firstPage as Element).children).map((child) =>
+        child.tagName.toLowerCase()
+      ),
+    ).toEqual(['wdoc-content']);
+    expect(firstPage?.querySelector('wdoc-content')?.textContent).toContain(
+      'first'
+    );
+  });
+
   it('splits long documents across multiple pages when needed', async () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
@@ -666,6 +694,12 @@ describe('AppComponent', () => {
       const lastChild = page.lastElementChild as Element;
       expect(firstChild.tagName.toLowerCase()).toBe('wdoc-header');
       expect(lastChild.tagName.toLowerCase()).toBe('wdoc-footer');
+      expect(
+        Array.from(page.children).map((child) => child.tagName.toLowerCase())
+      ).toEqual(['wdoc-header', 'wdoc-content', 'wdoc-footer']);
+      expect(page.querySelector('wdoc-content')?.textContent).toContain(
+        'page '
+      );
     });
 
     const container = doc.querySelector('wdoc-container');
