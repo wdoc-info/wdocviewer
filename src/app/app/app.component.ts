@@ -90,7 +90,7 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     const trimmedUrl = rawUrl.trim();
-    if (!trimmedUrl.toLowerCase().endsWith('.wdoc')) {
+    if (!this.isSupportedArchive(trimmedUrl)) {
       return;
     }
 
@@ -185,14 +185,14 @@ export class AppComponent implements OnInit, OnDestroy {
     if (!files?.length) {
       return;
     }
-    const wdocFile = Array.from(files).find((file) =>
-      file.name.toLowerCase().endsWith('.wdoc')
+    const archiveFile = Array.from(files).find((file) =>
+      this.isSupportedArchive(file.name)
     );
-    if (!wdocFile) {
-      alert('Please drop a .wdoc file.');
+    if (!archiveFile) {
+      alert('Please drop a .wdoc or .zip file.');
       return;
     }
-    this.onFileSelected(wdocFile);
+    this.onFileSelected(archiveFile);
   }
 
   private containsFiles(event: DragEvent): boolean {
@@ -270,8 +270,8 @@ export class AppComponent implements OnInit, OnDestroy {
       );
       await this.loadWdocFromArrayBuffer(arrayBuffer);
     } catch (error) {
-      console.error(`Error downloading .wdoc file from ${url}:`, error);
-      alert('Error downloading .wdoc file from URL.');
+      console.error(`Error downloading .wdoc/.zip file from ${url}:`, error);
+      alert('Error downloading .wdoc/.zip file from URL.');
     }
   }
 
@@ -303,7 +303,7 @@ export class AppComponent implements OnInit, OnDestroy {
         }
       }
       if (!indexFile) {
-        alert('index.html not found in the .wdoc file.');
+        alert('index.html not found in the archive.');
         return;
       }
       const html = await indexFile.async('text');
@@ -321,6 +321,11 @@ export class AppComponent implements OnInit, OnDestroy {
       console.error('Error processing zip file:', error);
       alert('Error processing .wdoc file.');
     }
+  }
+
+  private isSupportedArchive(name: string): boolean {
+    const lower = name.toLowerCase();
+    return lower.endsWith('.wdoc') || lower.endsWith('.zip');
   }
 
   private attachFormListeners() {
