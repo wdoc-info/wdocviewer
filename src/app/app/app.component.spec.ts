@@ -108,7 +108,9 @@ describe('AppComponent', () => {
     );
 
     const doc = new DOMParser().parseFromString(result, 'text/html');
-    const img = doc.querySelector('img');
+    const barcodeEl = doc.querySelector('wdoc-barcode');
+    const img = barcodeEl?.querySelector('img');
+    expect(barcodeEl?.getAttribute('text')).toBe('hello');
     expect(img?.getAttribute('src')).toBe('data:H');
   });
 
@@ -141,7 +143,9 @@ describe('AppComponent', () => {
     );
 
     const doc = new DOMParser().parseFromString(result, 'text/html');
-    const svg = doc.querySelector('svg');
+    const barcodeEl = doc.querySelector('wdoc-barcode');
+    const svg = barcodeEl?.querySelector('svg');
+    expect(barcodeEl?.getAttribute('text')).toBe('ABC123');
     expect(svg?.getAttribute('data-format')).toBe('CODE128');
     expect(svg?.getAttribute('data-value')).toBe('ABC123');
   });
@@ -171,7 +175,9 @@ describe('AppComponent', () => {
     );
 
     const doc = new DOMParser().parseFromString(result, 'text/html');
-    const img = doc.querySelector('img');
+    const barcodeEl = doc.querySelector('wdoc-barcode');
+    const img = barcodeEl?.querySelector('img');
+    expect(barcodeEl?.getAttribute('text')).toBe('abc');
     expect(img?.getAttribute('src')).toBe('data:default');
   });
 
@@ -194,7 +200,9 @@ describe('AppComponent', () => {
 
     expect(linearSpy).not.toHaveBeenCalled();
     const doc = new DOMParser().parseFromString(result, 'text/html');
-    expect(doc.querySelector('wdoc-barcode')?.textContent).toBe('123');
+    const barcodeEl = doc.querySelector('wdoc-barcode');
+    expect(barcodeEl?.getAttribute('text')).toBe('123');
+    expect(barcodeEl?.textContent).toBe('123');
   });
 
   it('removes empty barcode placeholders', async () => {
@@ -245,7 +253,10 @@ describe('AppComponent', () => {
     );
 
     const doc = new DOMParser().parseFromString(result, 'text/html');
-    const svg = doc.querySelector('svg');
+    const barcodeEl = doc.querySelector('wdoc-barcode');
+    const svg = barcodeEl?.querySelector('svg');
+    expect(barcodeEl?.getAttribute('class')).toBe('barcode');
+    expect(barcodeEl?.getAttribute('style')).toContain('width:100px');
     expect(svg?.getAttribute('data-format')).toBe('codabar');
     expect(svg?.getAttribute('class')).toBe('barcode');
     expect(svg?.getAttribute('style')).toContain('width:100px');
@@ -276,7 +287,11 @@ describe('AppComponent', () => {
     );
 
     const doc = new DOMParser().parseFromString(result, 'text/html');
-    expect(doc.querySelector('img')?.getAttribute('src')).toBe('data:qr');
+    const barcodeEl = doc.querySelector('wdoc-barcode');
+    expect(barcodeEl?.getAttribute('text')).toBe('value');
+    expect(barcodeEl?.querySelector('img')?.getAttribute('src')).toBe(
+      'data:qr',
+    );
   });
 
   it('maps supported linear barcode types to JsBarcode formats', () => {

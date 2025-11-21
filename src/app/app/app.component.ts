@@ -735,6 +735,7 @@ export class AppComponent implements OnInit, OnDestroy {
         continue;
       }
 
+      barcode.setAttribute('text', value);
       const type = (barcode.getAttribute('type') || 'qrcode').toLowerCase();
       if (type === 'qrcode') {
         await this.renderQrCode(barcode, value, doc);
@@ -760,7 +761,7 @@ export class AppComponent implements OnInit, OnDestroy {
       const img = doc.createElement('img');
       img.setAttribute('src', dataUrl);
       this.copyBarcodeAttributes(barcode, img);
-      barcode.replaceWith(img);
+      barcode.replaceChildren(img);
     } catch (error) {
       console.error('Failed to render QR code', error);
     }
@@ -782,7 +783,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.copyBarcodeAttributes(barcode, svg);
     try {
       this.generateLinearBarcode(svg, value, format);
-      barcode.replaceWith(svg);
+      barcode.replaceChildren(svg);
     } catch (error) {
       console.error(`Failed to render barcode of type ${format}`, error);
     }
