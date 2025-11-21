@@ -1,63 +1,74 @@
-# Wdocviewer
+# WDOC Webapp
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.2.1.
+The crew is tired of bowing to PDFs. This Angular 20 web app is our guerrilla reader for `.wdoc` archives—zipped HTML bundles meant to replace the old format and let us hack, remix, and ship documents without the heavy armor.
+
+## Quick start (load the ammo)
+1. Clone the repo and pull the example payloads:
+   ```bash
+   git clone <this repo>
+   cd wdoc-webapp
+   git submodule update --init --recursive  # grab ./examples
+   ```
+2. Install dependencies (Node 20+ recommended):
+   ```bash
+   npm install
+   ```
+3. Fire up the dev server:
+   ```bash
+   npm start
+   ```
+   Hit `http://localhost:4200` and the hot reload loop keeps you in the fight.
+
+## Features that help us topple PDFs
+- **Native `.wdoc` loader**: open zipped HTML locally or via `?url=` query param; finds `index.html` even when tucked in a folder.
+- **Drag, drop, done**: drop a `.wdoc` anywhere on the viewport, or select it from the side nav.
+- **Form capture & re-packaging**: edit forms inside the doc, then save a fresh `filled.wdoc` with inputs and uploaded files written under `wdoc-form/`.
+- **Safe rendering**: strips external scripts/iframes and inlines archive images so nothing sneaks past.
+- **Zoom & responsive layout**: side nav auto-switches between drawer and inline, and pages auto-fit the viewport.
 
 ## Development server
-
-To start a local development server, run:
-
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Run `npm start` (alias for `ng serve`) to launch the local server. The app rebuilds and reloads as you edit.
 
 ## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
+Need a new widget for the rebellion? Generate it with Angular CLI:
 ```bash
 ng generate component component-name
 ```
+Use `ng generate --help` to see all schematics.
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
+## Building for deployment
+Produce a production build with:
 ```bash
-ng generate --help
+npm run build
+```
+Artifacts land in `dist/`—ready for static hosting or being bundled with your favorite ops toolkit.
+
+## Unit tests
+Run the Karma/Jasmine suite headless:
+```bash
+npm test
 ```
 
-## Building
-
-To build the project run:
-
+## End-to-end tests
+We keep Playwright in the holster:
 ```bash
-ng build
+npm run e2e
 ```
+Start the dev server first if the test scenario needs it.
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
+## Coverage gizmo
+Get the numbers before shipping more ammo:
 ```bash
-ng test
+npm test -- --code-coverage
 ```
+Open `coverage/index.html` (or the generated project folder under `coverage/`) to inspect the report.
 
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
+## Working with the example docs
+The `examples/` directory is a git submodule. Initialize or refresh it whenever you clone:
 ```bash
-ng e2e
+git submodule update --init --recursive
 ```
+Point the viewer at those `.wdoc` files to demo the app or to debug new behaviors.
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
-
-## Form uploads
-
-When saving forms from a `.wdoc`, any `<input type="file">` elements are preserved. The selected files are stored in the `wdoc-form` folder of the generated archive and the form JSON includes the uploaded filename.
+## More angular firepower
+Check the [Angular CLI documentation](https://angular.dev/tools/cli) for every command and option. When in doubt, we prototype fast, test hard, and keep iterating—because mighty PDF won’t overthrow itself.
