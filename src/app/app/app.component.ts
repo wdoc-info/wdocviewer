@@ -625,6 +625,45 @@ export class AppComponent implements OnInit, OnDestroy {
     return { headerTemplate, footerTemplate, headerHeight, footerHeight };
   }
 
+  private ensurePageContentContainer(page: Element): Element {
+    const doc = page.ownerDocument;
+    const headers = Array.from(page.querySelectorAll(':scope > wdoc-header'));
+    const footers = Array.from(
+      page.querySelectorAll(':scope > wdoc-footer, :scope > doc-footer')
+    );
+    let content = page.querySelector(':scope > wdoc-content') as Element | null;
+
+    if (!content) {
+      content = doc.createElement('wdoc-content');
+    }
+
+    const reservedElements = new Set<Element>([
+      ...headers,
+      ...footers,
+      content,
+    ]);
+
+    Array.from(page.childNodes).forEach((child) => {
+      if (
+        (child.nodeType === Node.ELEMENT_NODE &&
+          reservedElements.has(child as Element)) ||
+        child === content
+      ) {
+        return;
+      }
+      content!.appendChild(child);
+    });
+
+    const fragment = doc.createDocumentFragment();
+    headers.forEach((header) => fragment.appendChild(header));
+    fragment.appendChild(content);
+    footers.forEach((footer) => fragment.appendChild(footer));
+
+    page.appendChild(fragment);
+
+    return content;
+  }
+
   private measureTemplateHeight(template: Element): number {
     if (!this.paginationContainer) {
       return 0;
@@ -648,18 +687,17 @@ export class AppComponent implements OnInit, OnDestroy {
     },
   ) {
     const { headerTemplate, footerTemplate } = templates;
-    if (!headerTemplate && !footerTemplate) {
-      return;
-    }
 
     const pages = Array.from(doc.querySelectorAll('wdoc-page'));
     pages.forEach((page) => {
+      const contentElement = this.ensurePageContentContainer(page);
       if (headerTemplate) {
-        page.insertBefore(headerTemplate.cloneNode(true), page.firstChild);
+        page.insertBefore(headerTemplate.cloneNode(true), contentElement);
       }
       if (footerTemplate) {
         page.appendChild(footerTemplate.cloneNode(true));
       }
+      this.ensurePageContentContainer(page);
     });
   }
 
@@ -721,6 +759,7 @@ export class AppComponent implements OnInit, OnDestroy {
       }
       const page = doc.createElement('wdoc-page');
       page.innerHTML = pageHtml;
+      this.ensurePageContentContainer(page);
       wdocContainer.appendChild(page);
       hasPages = true;
     }
