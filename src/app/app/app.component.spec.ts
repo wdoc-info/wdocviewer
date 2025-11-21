@@ -730,21 +730,39 @@ describe('AppComponent', () => {
       const processed = await app.processHtml(zip, html);
 
       const doc = new DOMParser().parseFromString(processed, 'text/html');
-      const pages = Array.from(doc.querySelectorAll('wdoc-page'));
+      const container = doc.querySelector('wdoc-container');
+      const pages = Array.from(
+        (container ?? doc.body).querySelectorAll('wdoc-page'),
+      ).filter((page) => page.parentElement === (container ?? doc.body));
 
       expect(pages.length).toBe(2);
       expect(pages[0].querySelector('wdoc-header')?.textContent).toBe(
         'Page 1 / 2 - 2024',
       );
+      expect(
+        pages[0].querySelector('wdoc-header wdoc-page')?.textContent,
+      ).toBe('1');
+      expect(
+        pages[0].querySelector('wdoc-header wdoc-nbpages')?.textContent,
+      ).toBe('2');
+      expect(
+        pages[0].querySelector('wdoc-header wdoc-date')?.textContent,
+      ).toBe('2024');
       expect(pages[1].querySelector('wdoc-header')?.textContent).toBe(
         'Page 2 / 2 - 2024',
       );
       expect(pages[0].querySelector('wdoc-footer')?.textContent).toBe(
         'Date 06/05/2024',
       );
+      expect(
+        pages[0].querySelector('wdoc-footer wdoc-date')?.textContent,
+      ).toBe('06/05/2024');
       expect(pages[1].querySelector('wdoc-content')?.textContent).toContain(
         'total 2',
       );
+      expect(
+        pages[1].querySelector('wdoc-content wdoc-nbpages')?.textContent,
+      ).toBe('2');
     } finally {
       jasmine.clock().uninstall();
     }

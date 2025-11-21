@@ -673,9 +673,12 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private applyPageMetadata(doc: Document): void {
     const container = doc.querySelector('wdoc-container');
-    const pages = container
-      ? Array.from(container.querySelectorAll(':scope > wdoc-page'))
-      : Array.from(doc.querySelectorAll('wdoc-page'));
+    const targetRoots = container ? [container] : [doc.body];
+    const pages = targetRoots.flatMap((root) =>
+      Array.from(root.querySelectorAll('wdoc-page')).filter(
+        (page) => page.parentElement === root,
+      ),
+    );
     const totalPages = pages.length;
     const now = new Date();
 
@@ -705,7 +708,7 @@ export class AppComponent implements OnInit, OnDestroy {
   ): void {
     const placeholders = Array.from(container.querySelectorAll(selector));
     placeholders.forEach((el) => {
-      el.replaceWith(doc.createTextNode(text));
+      el.textContent = text;
     });
   }
 
@@ -714,7 +717,7 @@ export class AppComponent implements OnInit, OnDestroy {
     placeholders.forEach((el) => {
       const format = el.getAttribute('format') || undefined;
       const formatted = this.formatDate(date, format);
-      el.replaceWith(doc.createTextNode(formatted));
+      el.textContent = formatted;
     });
   }
 
