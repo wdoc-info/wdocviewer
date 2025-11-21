@@ -188,9 +188,6 @@ describe('AppComponent', () => {
     const zip = new JSZip();
 
     const promise = app.processHtml(zip, html);
-    const req = httpMock.expectOne('assets/wdoc-styles.css');
-    req.flush('');
-
     const result = await promise;
     httpMock.verify();
 
