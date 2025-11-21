@@ -81,6 +81,216 @@ describe('AppComponent', () => {
     expect(app.documentTitle).toBe('Passport Application');
   });
 
+  it('renders QR codes with the requested error correction level', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const qrSpy = spyOn<any>(app, 'generateQrCodeDataUrl').and.callFake(
+      (_value: string, options: any) => {
+        return Promise.resolve(`data:${options.errorCorrectionLevel}`);
+      },
+    );
+
+    const html =
+      '<html><head></head><body><wdoc-page><wdoc-barcode errorcorrection="H">hello</wdoc-barcode></wdoc-page></body></html>';
+    const zip = new JSZip();
+
+    const promise = app.processHtml(zip, html);
+    const req = httpMock.expectOne('assets/wdoc-styles.css');
+    req.flush('');
+    const result = await promise;
+    httpMock.verify();
+
+    expect(qrSpy).toHaveBeenCalledWith(
+      'hello',
+      jasmine.objectContaining({ errorCorrectionLevel: 'H' }),
+    );
+
+    const doc = new DOMParser().parseFromString(result, 'text/html');
+    const img = doc.querySelector('img');
+    expect(img?.getAttribute('src')).toBe('data:H');
+  });
+
+  it('renders linear barcodes through JsBarcode', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const barcodeSpy = spyOn<any>(app, 'generateLinearBarcode').and.callFake(
+      (target: SVGElement, value: string, format: string) => {
+        target.setAttribute('data-format', format);
+        target.setAttribute('data-value', value);
+      },
+    );
+
+    const html =
+      '<html><head></head><body><wdoc-page><wdoc-barcode type="CODE128">ABC123</wdoc-barcode></wdoc-page></body></html>';
+    const zip = new JSZip();
+
+    const promise = app.processHtml(zip, html);
+    const req = httpMock.expectOne('assets/wdoc-styles.css');
+    req.flush('');
+    const result = await promise;
+    httpMock.verify();
+
+    expect(barcodeSpy).toHaveBeenCalledWith(
+      jasmine.any(SVGElement),
+      'ABC123',
+      'CODE128',
+    );
+
+    const doc = new DOMParser().parseFromString(result, 'text/html');
+    const svg = doc.querySelector('svg');
+    expect(svg?.getAttribute('data-format')).toBe('CODE128');
+    expect(svg?.getAttribute('data-value')).toBe('ABC123');
+  });
+
+  it('falls back to QR codes and default error correction when type is missing', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const qrSpy = spyOn<any>(app, 'generateQrCodeDataUrl').and.resolveTo(
+      'data:default',
+    );
+
+    const html =
+      '<html><head></head><body><wdoc-page><wdoc-barcode>abc</wdoc-barcode></wdoc-page></body></html>';
+    const zip = new JSZip();
+
+    const promise = app.processHtml(zip, html);
+    const req = httpMock.expectOne('assets/wdoc-styles.css');
+    req.flush('');
+    const result = await promise;
+    httpMock.verify();
+
+    expect(qrSpy).toHaveBeenCalledWith(
+      'abc',
+      jasmine.objectContaining({ errorCorrectionLevel: 'M' }),
+    );
+
+    const doc = new DOMParser().parseFromString(result, 'text/html');
+    const img = doc.querySelector('img');
+    expect(img?.getAttribute('src')).toBe('data:default');
+  });
+
+  it('ignores unsupported barcode types gracefully', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const linearSpy = spyOn<any>(app, 'generateLinearBarcode');
+
+    const html =
+      '<html><head></head><body><wdoc-page><wdoc-barcode type="unknown">123</wdoc-barcode></wdoc-page></body></html>';
+    const zip = new JSZip();
+
+    const promise = app.processHtml(zip, html);
+    const req = httpMock.expectOne('assets/wdoc-styles.css');
+    req.flush('');
+    const result = await promise;
+    httpMock.verify();
+
+    expect(linearSpy).not.toHaveBeenCalled();
+    const doc = new DOMParser().parseFromString(result, 'text/html');
+    expect(doc.querySelector('wdoc-barcode')?.textContent).toBe('123');
+  });
+
+  it('removes empty barcode placeholders', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const html =
+      '<html><head></head><body><wdoc-page><wdoc-barcode>   </wdoc-barcode></wdoc-page></body></html>';
+    const zip = new JSZip();
+
+    const promise = app.processHtml(zip, html);
+    const req = httpMock.expectOne('assets/wdoc-styles.css');
+    req.flush('');
+    const result = await promise;
+    httpMock.verify();
+
+    const doc = new DOMParser().parseFromString(result, 'text/html');
+    expect(doc.querySelector('wdoc-barcode')).toBeNull();
+    expect(doc.querySelector('wdoc-page')?.textContent?.trim()).toBe('');
+  });
+
+  it('normalizes linear barcode formats and preserves styling', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const barcodeSpy = spyOn<any>(app, 'generateLinearBarcode').and.callFake(
+      (target: SVGElement, _value: string, format: string) => {
+        target.setAttribute('data-format', format);
+      },
+    );
+
+    const html =
+      '<html><head></head><body><wdoc-page><wdoc-barcode type="codabar" class="barcode" style="width:100px">789</wdoc-barcode></wdoc-page></body></html>';
+    const zip = new JSZip();
+
+    const promise = app.processHtml(zip, html);
+    const req = httpMock.expectOne('assets/wdoc-styles.css');
+    req.flush('');
+    const result = await promise;
+    httpMock.verify();
+
+    expect(barcodeSpy).toHaveBeenCalledWith(
+      jasmine.any(SVGElement),
+      '789',
+      'codabar',
+    );
+
+    const doc = new DOMParser().parseFromString(result, 'text/html');
+    const svg = doc.querySelector('svg');
+    expect(svg?.getAttribute('data-format')).toBe('codabar');
+    expect(svg?.getAttribute('class')).toBe('barcode');
+    expect(svg?.getAttribute('style')).toContain('width:100px');
+  });
+
+  it('defaults invalid QR error correction values to medium', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const qrSpy = spyOn<any>(app, 'generateQrCodeDataUrl').and.resolveTo(
+      'data:qr',
+    );
+
+    const html =
+      '<html><head></head><body><wdoc-page><wdoc-barcode errorcorrection="x">value</wdoc-barcode></wdoc-page></body></html>';
+    const zip = new JSZip();
+
+    const promise = app.processHtml(zip, html);
+    const req = httpMock.expectOne('assets/wdoc-styles.css');
+    req.flush('');
+    const result = await promise;
+    httpMock.verify();
+
+    expect(qrSpy).toHaveBeenCalledWith(
+      'value',
+      jasmine.objectContaining({ errorCorrectionLevel: 'M' }),
+    );
+
+    const doc = new DOMParser().parseFromString(result, 'text/html');
+    expect(doc.querySelector('img')?.getAttribute('src')).toBe('data:qr');
+  });
+
+  it('maps supported linear barcode types to JsBarcode formats', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+
+    expect(app['normalizeLinearBarcodeType']('EAN')).toBe('EAN');
+    expect(app['normalizeLinearBarcodeType']('upc')).toBe('UPC');
+    expect(app['normalizeLinearBarcodeType']('Code39')).toBe('CODE39');
+    expect(app['normalizeLinearBarcodeType']('itf14')).toBe('ITF14');
+    expect(app['normalizeLinearBarcodeType']('msi')).toBe('MSI');
+    expect(app['normalizeLinearBarcodeType']('pharmacode')).toBe('pharmacode');
+  });
+
   it('falls back to the default title when no head title is present', async () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
