@@ -41,6 +41,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private readonly maxZoom = 200;
   documentTitle = this.defaultTitle;
   private originalArrayBuffer: ArrayBuffer | null = null;
+  private paginationStyleEl?: HTMLStyleElement;
   private resizeListener?: () => void;
   private isDesktop = false;
   private beforePrintListener?: () => void;
@@ -107,6 +108,9 @@ export class AppComponent implements OnInit, OnDestroy {
       if (this.afterPrintListener) {
         window.removeEventListener('afterprint', this.afterPrintListener);
       }
+    }
+    if (this.paginationStyleEl?.parentElement) {
+      this.paginationStyleEl.remove();
     }
     if (this.paginationContainer?.parentElement) {
       this.paginationContainer.remove();
@@ -507,6 +511,8 @@ export class AppComponent implements OnInit, OnDestroy {
       console.error('Error loading external CSS:', error);
     }
 
+    this.applyPaginationStyles(combinedCSS);
+
     // 5. Remove the existing head entirely.
     if (doc.head) {
       doc.head.remove();
@@ -549,6 +555,39 @@ export class AppComponent implements OnInit, OnDestroy {
   private updateDocumentTitle(doc: Document): void {
     const title = this.extractHeadTitle(doc);
     this.documentTitle = title && title.length > 0 ? title : this.defaultTitle;
+  }
+
+  private applyPaginationStyles(cssText: string) {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    if (!this.paginationStyleEl) {
+      this.paginationStyleEl = document.createElement('style');
+      this.paginationStyleEl.setAttribute('data-pagination-styles', 'true');
+      document.head.appendChild(this.paginationStyleEl);
+    }
+
+    this.paginationStyleEl.textContent = cssText;
+
+    if (this.paginationContainer) {
+      const probePage = document.createElement('wdoc-page');
+      probePage.style.visibility = 'hidden';
+      probePage.style.position = 'absolute';
+      probePage.style.pointerEvents = 'none';
+      probePage.style.left = '0';
+      probePage.style.top = '0';
+      this.paginationContainer.appendChild(probePage);
+      const measuredHeight = Math.ceil(probePage.getBoundingClientRect().height);
+      this.paginationContainer.removeChild(probePage);
+      if (measuredHeight > 0) {
+        this.htmlPageSplitter = new HtmlPageSplitter({
+          ...this.htmlPageSplitter?.defaultOptions,
+          container: this.paginationContainer,
+          pageHeight: measuredHeight,
+        });
+      }
+    }
   }
 
   private extractHeadTitle(doc: Document): string | null {

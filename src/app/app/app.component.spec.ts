@@ -178,6 +178,31 @@ describe('AppComponent', () => {
     expect(pages.length).toBeGreaterThan(1);
   });
 
+  it('applies document CSS to pagination measurements', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const css = '<style>body { font-size: 120px; line-height: 140px; margin: 0; }</style>';
+    const longBody = Array.from({ length: 15 })
+      .map((_, idx) => `<p style="margin:0">Line ${idx}</p>`)
+      .join('');
+
+    const html = `<html><head>${css}</head><body>${longBody}</body></html>`;
+    const zip = new JSZip();
+
+    const promise = app.processHtml(zip, html);
+    const req = httpMock.expectOne('assets/wdoc-styles.css');
+    req.flush('');
+
+    const result = await promise;
+    httpMock.verify();
+
+    const doc = new DOMParser().parseFromString(result, 'text/html');
+    const pages = doc.querySelectorAll('wdoc-page');
+    expect(pages.length).toBeGreaterThan(1);
+  });
+
   it('should mark showSave when form input changes', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance as any;
