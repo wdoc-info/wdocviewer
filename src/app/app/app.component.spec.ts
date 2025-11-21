@@ -1,10 +1,12 @@
-import { TestBed } from '@angular/core/testing';
+import { fakeAsync, TestBed, tick } from '@angular/core/testing';
+import { HttpClient } from '@angular/common/http';
 import {
   HttpClientTestingModule,
   HttpTestingController,
 } from '@angular/common/http/testing';
 import { AppComponent } from './app.component';
 import JSZip from 'jszip';
+import { of, throwError } from 'rxjs';
 
 const createFileList = (files: File[]): FileList => {
   const list: Record<number, File> & {
@@ -188,7 +190,7 @@ describe('AppComponent', () => {
     const app = fixture.componentInstance as any;
 
     const baseZip = new JSZip();
-    baseZip.file('index.html', '<form id="f1"></form>');
+    baseZip.file('index.html', '<form id="f1"></form><form></form>');
     const arrayBuffer = await baseZip.generateAsync({ type: 'arraybuffer' });
     app.originalArrayBuffer = arrayBuffer;
 
@@ -204,6 +206,13 @@ describe('AppComponent', () => {
     form.appendChild(input);
     const container = document.createElement('div');
     container.appendChild(form);
+
+    const extraForm = document.createElement('form');
+    const textInput = document.createElement('input');
+    textInput.name = 'note';
+    textInput.value = 'hello';
+    extraForm.appendChild(textInput);
+    container.appendChild(extraForm);
     app.viewer = { nativeElement: container } as any;
 
     let savedBlob: Blob | null = null;
@@ -252,6 +261,10 @@ describe('AppComponent', () => {
     expect(formEntry).toBeTruthy();
     expect(formEntry.role).toBe('form_instance');
     expect(formEntry.mime).toBe('application/json');
+
+    const defaultForm = entries.get('wdoc-form/form-1.json');
+    expect(defaultForm).toBeTruthy();
+    expect(defaultForm.role).toBe('form_instance');
 
     const attachmentEntry = entries.get('wdoc-form/photo.txt');
     expect(attachmentEntry).toBeTruthy();
@@ -388,5 +401,441 @@ describe('AppComponent', () => {
     expect(alertSpy).toHaveBeenCalledWith(
       'The document content does not match its manifest and will not be opened.'
     );
+  });
+
+  it('verifyContentManifest allows missing manifest files', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const zip = new JSZip();
+    zip.file('index.html', '<html></html>');
+
+    const result = await app.verifyContentManifest(zip);
+
+    expect(result).toBeTrue();
+  });
+
+  it('verifyContentManifest handles parse errors and unsupported formats', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const zip = new JSZip();
+    zip.file('index.html', '<html></html>');
+    zip.file('content_manifest.json', 'not-json');
+
+    const alertSpy = spyOn(window, 'alert');
+    spyOn(console, 'error');
+    const parseResult = await app.verifyContentManifest(zip);
+    expect(parseResult).toBeFalse();
+    expect(alertSpy).toHaveBeenCalledWith(
+      'The document content could not be verified and will not be opened.'
+    );
+
+    zip.remove('content_manifest.json');
+    zip.file(
+      'content_manifest.json',
+      JSON.stringify({ algorithm: 'md5', files: [] })
+    );
+    alertSpy.calls.reset();
+    const formatResult = await app.verifyContentManifest(zip);
+    expect(formatResult).toBeFalse();
+    expect(alertSpy).toHaveBeenCalledWith(
+      'The document manifest uses an unsupported format and will not be opened.'
+    );
+  });
+
+  it('clamps and rounds zoom changes', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+
+    app.onZoomChange(10);
+    expect(app.zoom).toBe(25);
+
+    app.onZoomChange(199.6);
+    expect(app.zoom).toBe(200);
+
+    app.onZoomChange(Number.NaN);
+    expect(app.zoom).toBe(25);
+  });
+
+  it('adjusts layout responsively when crossing the desktop threshold', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+
+    app.isNavOpen = false;
+    app['applyResponsiveLayout'](500);
+    expect(app.sidenavMode).toBe('over');
+    expect(app.isNavOpen).toBeFalse();
+
+    app.isNavOpen = false;
+    app['applyResponsiveLayout'](1200);
+    expect(app.sidenavMode).toBe('side');
+    expect(app.isNavOpen).toBeTrue();
+  });
+
+  it('fits content to the viewport when zoom exceeds the computed fit', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const container = document.createElement('div');
+    Object.defineProperty(container, 'clientWidth', { value: 400 });
+    const page = document.createElement('wdoc-page');
+    Object.defineProperty(page, 'offsetWidth', { value: 500 });
+    container.appendChild(page);
+    app.viewer = { nativeElement: container } as any;
+
+    app.zoom = 150;
+    app['fitContentToViewport']();
+    expect(app.zoom).toBe(75);
+
+    app.zoom = 60;
+    app['fitContentToViewport']();
+    expect(app.zoom).toBe(60);
+
+    app.zoom = 150;
+    app['fitContentToViewport'](true);
+    expect(app.zoom).toBe(75);
+  });
+
+  it('converts relative images to data URLs and drops rejected external images', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const http = TestBed.inject(HttpClient);
+
+    const html =
+      '<html><head><style>.a{color:red;}</style><link rel="stylesheet" href="/styles/site.css"><link rel="stylesheet" href="styles/site.css"></head>' +
+      '<body><img src="/pic.png"/><img src="http://example.com/ext.png"/><wdoc-page></wdoc-page></body></html>';
+    const zip = new JSZip();
+    zip.file('styles/site.css', '.b{color:blue;}');
+    zip.file('pic.png', 'image-bytes');
+
+    spyOn(window, 'confirm').and.returnValue(false);
+    const httpSpy = spyOn(http, 'get').and.returnValue(of('body{margin:0;}'));
+    const promise = app.processHtml(zip, html);
+    const processed = await promise;
+
+    const doc = new DOMParser().parseFromString(processed, 'text/html');
+    const firstImg = doc.querySelector('img[src^="data:image/png;base64,"]');
+    expect(firstImg).toBeTruthy();
+    expect(doc.querySelectorAll('img').length).toBe(1);
+    expect(doc.querySelector('style')!.textContent).toContain('.b');
+    expect(doc.querySelector('style')!.textContent).toContain('body{margin:0;}');
+    expect(httpSpy.calls.mostRecent().args[0]).toBe('assets/wdoc-styles.css');
+  });
+
+  it('normalizes fit zoom to 100% when content already fits', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const container = document.createElement('div');
+    Object.defineProperty(container, 'clientWidth', { value: 800 });
+    const page = document.createElement('wdoc-page');
+    Object.defineProperty(page, 'offsetWidth', { value: 100 });
+    container.appendChild(page);
+    app.viewer = { nativeElement: container } as any;
+
+    expect(app['calculateFitZoom']()).toBe(100);
+  });
+
+  it('returns null from calculateFitZoom when prerequisites are missing', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+
+    expect(app['calculateFitZoom']()).toBeNull();
+
+    app.viewer = { nativeElement: document.createElement('div') } as any;
+    expect(app['calculateFitZoom']()).toBeNull();
+
+    const container = document.createElement('div');
+    Object.defineProperty(container, 'clientWidth', {
+      value: 0,
+      configurable: true,
+    });
+    app.viewer = { nativeElement: container } as any;
+    expect(app['calculateFitZoom']()).toBeNull();
+
+    Object.defineProperty(container, 'clientWidth', { value: 200 });
+    const page = document.createElement('wdoc-page');
+    Object.defineProperty(page, 'offsetWidth', { value: 0 });
+    container.appendChild(page);
+    expect(app['calculateFitZoom']()).toBeNull();
+  });
+
+  it('falls back to the first child when no wdoc-page is present', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const container = document.createElement('div');
+    Object.defineProperty(container, 'clientWidth', { value: 500 });
+    const child = document.createElement('div');
+    Object.defineProperty(child, 'offsetWidth', { value: 250 });
+    container.appendChild(child);
+    app.viewer = { nativeElement: container } as any;
+
+    expect(app['calculateFitZoom']()).toBe(100);
+  });
+
+  it('handles drag interactions and file detection robustly', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+
+    expect(app['containsFiles']({ dataTransfer: null } as DragEvent)).toBeFalse();
+    expect(
+      app['containsFiles']({
+        dataTransfer: { types: ['text/plain'] },
+      } as unknown as DragEvent)
+    ).toBeFalse();
+
+    const dataTransfer = { types: ['Files'] } as unknown as DataTransfer;
+    expect(app['containsFiles']({ dataTransfer } as DragEvent)).toBeTrue();
+
+    const preventDefault = jasmine.createSpy('preventDefault');
+    app.dragDepth = 2;
+    app.showDropOverlay = true;
+    app.onDragLeave({ preventDefault, dataTransfer } as unknown as DragEvent);
+    expect(app.dragDepth).toBe(1);
+    expect(app.showDropOverlay).toBeTrue();
+
+    app.onDragLeave({ preventDefault, dataTransfer } as unknown as DragEvent);
+    expect(app.dragDepth).toBe(0);
+    expect(app.showDropOverlay).toBeFalse();
+
+    const overEvent = {
+      preventDefault,
+      dataTransfer: { ...dataTransfer, dropEffect: 'none' },
+    } as unknown as DragEvent;
+    app.onDragOver(overEvent);
+    expect((overEvent as any).dataTransfer.dropEffect).toBe('copy');
+  });
+
+  it('keeps confirmed external images when allowed by the user', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const http = TestBed.inject(HttpClient);
+    const html =
+      '<html><head></head><body><img src="http://example.com/ext.png"/><wdoc-page></wdoc-page></body></html>';
+    const zip = new JSZip();
+
+    spyOn(window, 'confirm').and.returnValue(true);
+    spyOn(http, 'get').and.returnValue(of(''));
+
+    const processed = await app.processHtml(zip, html);
+    const doc = new DOMParser().parseFromString(processed, 'text/html');
+    expect(doc.querySelectorAll('img').length).toBe(1);
+  });
+
+  it('derives MIME types and roles for known extensions', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+
+    expect(app['guessMimeType']('file.html')).toBe('text/html');
+    expect(app['guessMimeType']('style.css')).toBe('text/css');
+    expect(app['guessMimeType']('script.js')).toBe('application/javascript');
+    expect(app['guessMimeType']('data.json')).toBe('application/json');
+    expect(app['guessMimeType']('image.png')).toBe('image/png');
+    expect(app['guessMimeType']('image.jpg')).toBe('image/jpeg');
+    expect(app['guessMimeType']('image.gif')).toBe('image/gif');
+    expect(app['guessMimeType']('document.pdf')).toBe('application/pdf');
+    expect(app['guessMimeType']('notes.txt')).toBe('text/plain');
+    expect(app['guessMimeType']('unknown.bin')).toBe('application/octet-stream');
+
+    expect(app['determineRole']('index.html')).toBe('doc_core');
+    expect(app['determineRole']('wdoc-form/f1.json')).toBe('form_instance');
+    expect(app['determineRole']('wdoc-form/photo.png')).toBe('form_attachment');
+    expect(app['determineRole']('assets/logo.png')).toBe('asset');
+  });
+
+  it('loads nested index files within the zip archive', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const zip = new JSZip();
+    zip.folder('docs')!.file('index.html', '<html><body>Nested</body></html>');
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' });
+    const processSpy = spyOn(app, 'processHtml').and.returnValue(
+      Promise.resolve('<body>processed</body>')
+    );
+
+    await app['loadWdocFromArrayBuffer'](buffer);
+
+    expect(processSpy).toHaveBeenCalled();
+    expect(app.htmlContent).toBeTruthy();
+  });
+
+  it('alerts when no index file is present', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const zip = new JSZip();
+    zip.file('readme.txt', 'info');
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' });
+    const alertSpy = spyOn(window, 'alert');
+    spyOn(app, 'processHtml');
+
+    await app['loadWdocFromArrayBuffer'](buffer);
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      'index.html not found in the .wdoc file.'
+    );
+    expect(app.processHtml).not.toHaveBeenCalled();
+  });
+
+  it('handles download errors while fetching remote .wdoc files', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const http = TestBed.inject(HttpClient);
+    spyOn(http, 'get').and.returnValue(throwError(() => new Error('404')));
+    const alertSpy = spyOn(window, 'alert');
+
+    await app['fetchAndLoadWdoc']('https://example.com/fail.wdoc');
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Error downloading .wdoc file from URL.'
+    );
+  });
+
+  it('ignores drop events without .wdoc files', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    app.dragDepth = 2;
+    app.showDropOverlay = true;
+
+    const alertSpy = spyOn(window, 'alert');
+    const dataTransfer = {
+      types: ['Files'],
+      files: [new File(['text'], 'notes.txt')] as any,
+    } as unknown as DataTransfer;
+
+    app.onDrop({ preventDefault() {}, dataTransfer } as DragEvent);
+
+    expect(app.dragDepth).toBe(0);
+    expect(app.showDropOverlay).toBeFalse();
+    expect(alertSpy).toHaveBeenCalledWith('Please drop a .wdoc file.');
+  });
+
+  it('does not adjust zoom when fit calculation is unavailable', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    app.zoom = 150;
+    app.viewer = undefined as any;
+    app['fitContentToViewport']();
+    expect(app.zoom).toBe(150);
+  });
+
+  it('toggles navigation and handles window resize', fakeAsync(() => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const fitSpy = spyOn(app, 'fitContentToViewport');
+
+    app.isNavOpen = false;
+    app.toggleNav();
+    tick();
+    expect(app.isNavOpen).toBeTrue();
+    expect(fitSpy).toHaveBeenCalled();
+
+    fitSpy.calls.reset();
+    app.closeNav();
+    tick();
+    expect(app.isNavOpen).toBeFalse();
+    expect(fitSpy).toHaveBeenCalled();
+
+    const responsiveSpy = spyOn<any>(app, 'applyResponsiveLayout');
+    app['onWindowResize'](800);
+    expect(responsiveSpy).toHaveBeenCalledWith(800);
+  }));
+
+  it('logs CSS load failures when applying wdoc styles', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const http = TestBed.inject(HttpClient);
+    spyOn(http, 'get').and.returnValue(throwError(() => new Error('no css')));
+    const errorSpy = spyOn(console, 'error');
+
+    const html = '<html><head></head><body><wdoc-page></wdoc-page></body></html>';
+    const zip = new JSZip();
+    await app.processHtml(zip, html);
+
+    expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it('populates radio buttons, checkboxes, selects, and textareas from form data', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const http = TestBed.inject(HttpClient);
+    spyOn(http, 'get').and.returnValue(of(''));
+
+    const zip = new JSZip();
+    const html =
+      '<html><head></head><body>' +
+      '<form id="f2">' +
+      '<input type="checkbox" name="agree" />' +
+      '<input type="radio" name="choice" value="a" />' +
+      '<input type="radio" name="choice" value="b" />' +
+      '<input type="file" name="upload" />' +
+      '<select name="country"><option value="US">US</option><option value="CA">CA</option></select>' +
+      '<textarea name="notes"></textarea>' +
+      '</form><wdoc-page></wdoc-page></body></html>';
+    zip.file('index.html', html);
+    const folder = zip.folder('wdoc-form')!;
+    folder.file(
+      'f2.json',
+      JSON.stringify({ agree: '1', choice: 'b', country: 'CA', notes: 'hello', upload: 'asset.bin' })
+    );
+    folder.file('asset.bin', 'file-data');
+
+    const mimeSpy = spyOn<any>(app, 'guessMimeType').and.returnValue('');
+    const urlSpy = spyOn(URL, 'createObjectURL').and.returnValue('blob:link');
+
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    await (app as any).populateFormsFromZip(zip, doc);
+    expect((doc.querySelector('input[name="agree"]') as HTMLInputElement).checked).toBeTrue();
+    const radio = doc.querySelector('input[name="choice"][value="b"]') as HTMLInputElement;
+    expect(radio.checked).toBeTrue();
+    const select = doc.querySelector('select[name="country"]') as HTMLSelectElement;
+    expect(select.value).toBe('CA');
+    const textarea = doc.querySelector('textarea[name="notes"]') as HTMLTextAreaElement;
+    expect(textarea.value).toBe('hello');
+    expect(textarea.textContent).toBe('hello');
+    const link = doc.querySelector('input[name="upload"] + a') as HTMLAnchorElement;
+    expect(link).toBeTruthy();
+    expect(link.getAttribute('download')).toBe('asset.bin');
+    expect(link.href).toBe('blob:link');
+    expect(mimeSpy).toHaveBeenCalled();
+    expect(urlSpy).toHaveBeenCalled();
+  });
+
+  it('warns when relative images are missing from the archive', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const http = TestBed.inject(HttpClient);
+    spyOn(http, 'get').and.returnValue(of(''));
+    const warnSpy = spyOn(console, 'warn');
+
+    const html =
+      '<html><head></head><body><img src="missing.png"/><wdoc-page></wdoc-page></body></html>';
+    const zip = new JSZip();
+
+    await app.processHtml(zip, html);
+
+    expect(warnSpy).toHaveBeenCalledWith('File missing.png not found in zip.');
+  });
+
+  it('applies form data even when folder root metadata is missing', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const fakeFolder = {
+      root: '',
+      filter: () => [
+        {
+          name: 'form-1.json',
+          async: async () => JSON.stringify({ value: 'set' }),
+        },
+      ],
+      file: () => null,
+    } as any;
+    const zip = { folder: () => fakeFolder } as any;
+    const doc = new DOMParser().parseFromString(
+      '<form id="form-1"><input name="value" /></form>',
+      'text/html'
+    );
+
+    await app.populateFormsFromZip(zip, doc);
+
+    expect(
+      (doc.querySelector('input[name="value"]') as HTMLInputElement).value
+    ).toBe('set');
   });
 });
