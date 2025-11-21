@@ -720,7 +720,7 @@ describe('AppComponent', () => {
     try {
       const html =
         '<html><head></head><body>' +
-        '<wdoc-header>Page <wdoc-page></wdoc-page> / <wdoc-nbpages></wdoc-nbpages> - <wdoc-date format="Y"></wdoc-date></wdoc-header>' +
+        '<wdoc-header>Page <wdoc-pagenum></wdoc-pagenum> / <wdoc-nbpages></wdoc-nbpages> - <wdoc-date format="Y"></wdoc-date></wdoc-header>' +
         '<wdoc-footer>Date <wdoc-date></wdoc-date></wdoc-footer>' +
         '<wdoc-page><div>first</div></wdoc-page>' +
         '<wdoc-page><div>second - total <wdoc-nbpages></wdoc-nbpages></div></wdoc-page>' +
@@ -740,7 +740,7 @@ describe('AppComponent', () => {
         'Page 1 / 2 - 2024',
       );
       expect(
-        pages[0].querySelector('wdoc-header wdoc-page')?.textContent,
+        pages[0].querySelector('wdoc-header wdoc-pagenum')?.textContent,
       ).toBe('1');
       expect(
         pages[0].querySelector('wdoc-header wdoc-nbpages')?.textContent,

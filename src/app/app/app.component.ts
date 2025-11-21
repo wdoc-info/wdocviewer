@@ -686,7 +686,7 @@ export class AppComponent implements OnInit, OnDestroy {
       const pageNumber = (index + 1).toString();
       this.replacePlaceholders(
         page,
-        'wdoc-page',
+        'wdoc-pagenum',
         pageNumber,
         page.ownerDocument || doc,
       );
