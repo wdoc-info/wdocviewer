@@ -707,6 +707,49 @@ describe('AppComponent', () => {
     expect(container?.querySelectorAll(':scope > wdoc-footer').length).toBe(0);
   });
 
+  it('replaces page metadata placeholders after templates are applied', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const http = TestBed.inject(HttpClient);
+
+    spyOn(http, 'get').and.returnValue(of(''));
+
+    jasmine.clock().install();
+    jasmine.clock().mockDate(new Date('2024-05-06T12:00:00Z'));
+
+    try {
+      const html =
+        '<html><head></head><body>' +
+        '<wdoc-header>Page <wdoc-page></wdoc-page> / <wdoc-nbpages></wdoc-nbpages> - <wdoc-date format="Y"></wdoc-date></wdoc-header>' +
+        '<wdoc-footer>Date <wdoc-date></wdoc-date></wdoc-footer>' +
+        '<wdoc-page><div>first</div></wdoc-page>' +
+        '<wdoc-page><div>second - total <wdoc-nbpages></wdoc-nbpages></div></wdoc-page>' +
+        '</body></html>';
+
+      const zip = new JSZip();
+      const processed = await app.processHtml(zip, html);
+
+      const doc = new DOMParser().parseFromString(processed, 'text/html');
+      const pages = Array.from(doc.querySelectorAll('wdoc-page'));
+
+      expect(pages.length).toBe(2);
+      expect(pages[0].querySelector('wdoc-header')?.textContent).toBe(
+        'Page 1 / 2 - 2024',
+      );
+      expect(pages[1].querySelector('wdoc-header')?.textContent).toBe(
+        'Page 2 / 2 - 2024',
+      );
+      expect(pages[0].querySelector('wdoc-footer')?.textContent).toBe(
+        'Date 06/05/2024',
+      );
+      expect(pages[1].querySelector('wdoc-content')?.textContent).toContain(
+        'total 2',
+      );
+    } finally {
+      jasmine.clock().uninstall();
+    }
+  });
+
   it('normalizes fit zoom to 100% when content already fits', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance as any;
