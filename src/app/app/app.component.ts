@@ -35,7 +35,10 @@ export class AppComponent implements OnInit, OnDestroy {
   isNavOpen = false;
   sidenavMode: MatDrawerMode = 'over';
   showDropOverlay = false;
+  zoom = 100;
   private readonly defaultTitle = 'WDOC viewer';
+  private readonly minZoom = 25;
+  private readonly maxZoom = 200;
   documentTitle = this.defaultTitle;
   private originalArrayBuffer: ArrayBuffer | null = null;
   private resizeListener?: () => void;
@@ -63,7 +66,7 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     if (typeof window !== 'undefined') {
       this.applyResponsiveLayout(window.innerWidth);
-      this.resizeListener = () => this.applyResponsiveLayout(window.innerWidth);
+      this.resizeListener = () => this.onWindowResize(window.innerWidth);
       window.addEventListener('resize', this.resizeListener);
       this.beforePrintListener = () => {
         this.wasNavOpenBeforePrint = this.isNavOpen;
@@ -124,10 +127,12 @@ export class AppComponent implements OnInit, OnDestroy {
 
   toggleNav() {
     this.isNavOpen = !this.isNavOpen;
+    setTimeout(() => this.fitContentToViewport());
   }
 
   closeNav() {
     this.isNavOpen = false;
+    setTimeout(() => this.fitContentToViewport());
   }
 
   @HostListener('document:dragenter', ['$event'])
@@ -194,13 +199,64 @@ export class AppComponent implements OnInit, OnDestroy {
     return Array.from(types).includes('Files');
   }
 
+  private onWindowResize(width: number) {
+    this.applyResponsiveLayout(width);
+    this.fitContentToViewport();
+  }
+
   private applyResponsiveLayout(width: number) {
     const isDesktop = width >= 992;
     this.sidenavMode = isDesktop ? 'side' : 'over';
     if (isDesktop !== this.isDesktop) {
       this.isDesktop = isDesktop;
       this.isNavOpen = isDesktop;
+      setTimeout(() => this.fitContentToViewport());
     }
+  }
+
+  onZoomChange(zoom: number) {
+    this.zoom = this.clampZoom(zoom);
+  }
+
+  private clampZoom(value: number): number {
+    const bounded = Math.round(Number.isFinite(value) ? value : this.minZoom);
+    return Math.min(this.maxZoom, Math.max(this.minZoom, bounded));
+  }
+
+  private fitContentToViewport(force = false) {
+    const fitZoom = this.calculateFitZoom();
+    if (fitZoom === null) {
+      return;
+    }
+    if (force || this.zoom > fitZoom) {
+      this.zoom = fitZoom;
+    }
+  }
+
+  private calculateFitZoom(): number | null {
+    if (!this.viewer || !this.viewer.nativeElement) {
+      return null;
+    }
+
+    const containerWidth = this.viewer.nativeElement.clientWidth;
+    if (!containerWidth) {
+      return null;
+    }
+
+    const pageElement = (this.viewer.nativeElement.querySelector('wdoc-page') ||
+      this.viewer.nativeElement.firstElementChild) as HTMLElement | null;
+
+    if (!pageElement) {
+      return null;
+    }
+
+    const baseWidth = pageElement.offsetWidth;
+    if (!baseWidth) {
+      return null;
+    }
+
+    const fitPercent = Math.floor(((containerWidth - 24) / baseWidth) * 100);
+    return fitPercent > 100 ? 100 : fitPercent;
   }
 
   private async fetchAndLoadWdoc(url: string): Promise<void> {
@@ -250,7 +306,13 @@ export class AppComponent implements OnInit, OnDestroy {
       const processedHtml = await this.processHtml(zip, html);
       // Bypass Angular's security after processing the content
       this.htmlContent = this.sanitizer.bypassSecurityTrustHtml(processedHtml);
-      setTimeout(() => this.attachFormListeners());
+      if (!this.isDesktop) {
+        this.isNavOpen = false;
+      }
+      setTimeout(() => {
+        this.attachFormListeners();
+        this.fitContentToViewport(true);
+      });
     } catch (error) {
       console.error('Error processing zip file:', error);
       alert('Error processing .wdoc file.');
@@ -262,6 +324,9 @@ export class AppComponent implements OnInit, OnDestroy {
       return;
     }
     const container = this.viewer.nativeElement;
+    if (!container) {
+      return;
+    }
     const controls = container.querySelectorAll('input, textarea, select');
     controls.forEach((el) => {
       el.addEventListener('input', () => (this.showSave = true));
@@ -270,7 +335,11 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   async onSaveForms() {
-    if (!this.originalArrayBuffer || !this.viewer) {
+    if (
+      !this.originalArrayBuffer ||
+      !this.viewer ||
+      !this.viewer.nativeElement
+    ) {
       return;
     }
     const newZip = await JSZip.loadAsync(this.originalArrayBuffer);
