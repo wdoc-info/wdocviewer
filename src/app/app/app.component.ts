@@ -535,6 +535,21 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     }
 
+    const headerTemplate = this.extractTemplate(doc, 'wdoc-header');
+    const footerTemplate = this.extractTemplate(doc, 'wdoc-footer');
+
+    if (headerTemplate || footerTemplate) {
+      const pages = Array.from(doc.querySelectorAll('wdoc-page'));
+      pages.forEach((page) => {
+        if (headerTemplate) {
+          page.insertBefore(headerTemplate.cloneNode(true), page.firstChild);
+        }
+        if (footerTemplate) {
+          page.appendChild(footerTemplate.cloneNode(true));
+        }
+      });
+    }
+
     await this.populateFormsFromZip(zip, doc);
     return doc.documentElement.outerHTML;
   }
@@ -548,6 +563,16 @@ export class AppComponent implements OnInit, OnDestroy {
     const headTitle = doc.querySelector('head title');
     const titleText = headTitle?.textContent?.trim();
     return titleText && titleText.length > 0 ? titleText : null;
+  }
+
+  private extractTemplate(doc: Document, selector: string): Element | null {
+    const elements = Array.from(doc.querySelectorAll(selector));
+    if (elements.length === 0) {
+      return null;
+    }
+    const template = elements[0].cloneNode(true) as Element;
+    elements.forEach((element) => element.remove());
+    return template;
   }
 
   /**

@@ -520,6 +520,40 @@ describe('AppComponent', () => {
     expect(httpSpy.calls.mostRecent().args[0]).toBe('assets/wdoc-styles.css');
   });
 
+  it('replicates headers and footers across each page', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const http = TestBed.inject(HttpClient);
+
+    spyOn(http, 'get').and.returnValue(of(''));
+
+    const html =
+      '<html><head></head><body>' +
+      '<wdoc-header>hey header</wdoc-header>' +
+      '<wdoc-page><div>page 1</div></wdoc-page>' +
+      '<wdoc-page><div>page 2</div></wdoc-page>' +
+      '<wdoc-footer>hey footer</wdoc-footer>' +
+      '</body></html>';
+
+    const zip = new JSZip();
+    const processed = await app.processHtml(zip, html);
+
+    const doc = new DOMParser().parseFromString(processed, 'text/html');
+    const pages = Array.from(doc.querySelectorAll('wdoc-page'));
+
+    expect(pages.length).toBe(2);
+    pages.forEach((page) => {
+      const firstChild = page.firstElementChild as Element;
+      const lastChild = page.lastElementChild as Element;
+      expect(firstChild.tagName.toLowerCase()).toBe('wdoc-header');
+      expect(lastChild.tagName.toLowerCase()).toBe('wdoc-footer');
+    });
+
+    const container = doc.querySelector('wdoc-container');
+    expect(container?.querySelectorAll(':scope > wdoc-header').length).toBe(0);
+    expect(container?.querySelectorAll(':scope > wdoc-footer').length).toBe(0);
+  });
+
   it('normalizes fit zoom to 100% when content already fits', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance as any;
