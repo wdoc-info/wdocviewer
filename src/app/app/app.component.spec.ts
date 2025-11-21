@@ -264,12 +264,12 @@ describe('AppComponent', () => {
     expect(app.showSave).toBeTrue();
   });
 
-  it('loads a .wdoc from the url query parameter', async () => {
+  it('loads an archive from the url query parameter', async () => {
     const originalUrl = window.location.href;
     window.history.pushState(
       {},
       '',
-      '/?url=https%3A%2F%2Fexample.com%2Fsample.wdoc'
+      '/?url=https%3A%2F%2Fexample.com%2Fsample.zip'
     );
 
     const fixture = TestBed.createComponent(AppComponent);
@@ -282,7 +282,7 @@ describe('AppComponent', () => {
 
     app.ngOnInit();
 
-    const req = httpMock.expectOne('https://example.com/sample.wdoc');
+    const req = httpMock.expectOne('https://example.com/sample.zip');
     const buffer = new ArrayBuffer(1);
     req.flush(buffer);
 
@@ -381,11 +381,11 @@ describe('AppComponent', () => {
     expect(attachmentEntry.mime).toBe('text/plain');
   });
 
-  it('shows the drop overlay for dragged files and loads .wdoc files on drop', () => {
+  it('shows the drop overlay for dragged files and loads supported files on drop', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
 
-    const wdocFile = new File(['demo'], 'sample.wdoc');
+    const wdocFile = new File(['demo'], 'sample.zip');
     const fileList = createFileList([wdocFile]);
     const dataTransfer = {
       types: ['Files'],
@@ -824,27 +824,25 @@ describe('AppComponent', () => {
 
     await app['loadWdocFromArrayBuffer'](buffer);
 
-    expect(alertSpy).toHaveBeenCalledWith(
-      'index.html not found in the .wdoc file.'
-    );
+    expect(alertSpy).toHaveBeenCalledWith('index.html not found in the archive.');
     expect(app.processHtml).not.toHaveBeenCalled();
   });
 
-  it('handles download errors while fetching remote .wdoc files', async () => {
+  it('handles download errors while fetching remote archives', async () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance as any;
     const http = TestBed.inject(HttpClient);
     spyOn(http, 'get').and.returnValue(throwError(() => new Error('404')));
     const alertSpy = spyOn(window, 'alert');
 
-    await app['fetchAndLoadWdoc']('https://example.com/fail.wdoc');
+    await app['fetchAndLoadWdoc']('https://example.com/fail.zip');
 
     expect(alertSpy).toHaveBeenCalledWith(
-      'Error downloading .wdoc file from URL.'
+      'Error downloading .wdoc/.zip file from URL.'
     );
   });
 
-  it('ignores drop events without .wdoc files', () => {
+  it('ignores drop events without supported files', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance as any;
     app.dragDepth = 2;
@@ -860,7 +858,7 @@ describe('AppComponent', () => {
 
     expect(app.dragDepth).toBe(0);
     expect(app.showDropOverlay).toBeFalse();
-    expect(alertSpy).toHaveBeenCalledWith('Please drop a .wdoc file.');
+    expect(alertSpy).toHaveBeenCalledWith('Please drop a .wdoc or .zip file.');
   });
 
   it('does not adjust zoom when fit calculation is unavailable', () => {

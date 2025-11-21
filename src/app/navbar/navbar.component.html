@@ -14,14 +14,14 @@
   </header>
   <div class="nav-content">
     <button type="button" class="nav-btn" (click)="triggerFileDialog()">
-      Open .wdoc file
+      Open .wdoc or .zip file
     </button>
     <input
       #fileInput
       type="file"
       class="sr-only"
       (change)="onFileChange($event)"
-      accept=".wdoc"
+      accept=".wdoc,.zip"
       aria-hidden="true"
       tabindex="-1"
     />

@@ -19,7 +19,7 @@ describe('NavbarComponent', () => {
   });
 
   it('should emit selected file', () => {
-    const file = new File(['dummy'], 'test.wdoc');
+    const file = new File(['dummy'], 'test.zip');
     let emitted: File | null = null;
     component.fileSelected.subscribe((f) => (emitted = f));
 
@@ -27,6 +27,6 @@ describe('NavbarComponent', () => {
     component.onFileChange(mockEvent);
 
     expect(emitted).toBeTruthy();
-    expect(emitted!.name).toBe('test.wdoc');
+    expect(emitted!.name).toBe('test.zip');
   });
 });
