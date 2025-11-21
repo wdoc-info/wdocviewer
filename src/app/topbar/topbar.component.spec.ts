@@ -61,4 +61,20 @@ describe('TopbarComponent', () => {
     input.dispatchEvent(new Event('blur'));
     expect(component.zoomChange.emit).toHaveBeenCalledWith(150);
   });
+
+  it('falls back to the current zoom when an invalid value is entered', () => {
+    component.hasDocument = true;
+    component.zoom = 85;
+    spyOn(component.zoomChange, 'emit');
+    fixture.detectChanges();
+
+    const input: HTMLInputElement = fixture.nativeElement.querySelector(
+      '.zoom-input input'
+    );
+    input.value = 'abc';
+    input.dispatchEvent(new Event('input'));
+    input.dispatchEvent(new Event('blur'));
+
+    expect(component.zoomChange.emit).toHaveBeenCalledWith(85);
+  });
 });

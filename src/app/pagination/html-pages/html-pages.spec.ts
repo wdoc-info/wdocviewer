@@ -82,6 +82,42 @@ describe('splitHtmlToPages', () => {
     expect(pages[0]).toContain('one');
     expect(pages[0]).not.toContain('two');
   });
+
+  it('uses default options when none are provided', async () => {
+    const iterator = splitHtmlToPages('<p>single page</p>', undefined, {
+      aborted: true,
+    });
+    const first = await iterator.next();
+
+    expect(first.done).toBeTrue();
+  });
+
+  it('falls back when the source text content is missing', async () => {
+    const heights = [2, 0, 0];
+    const container = document.createElement('div');
+    Object.defineProperty(container, 'clientHeight', {
+      get() {
+        return heights.shift() ?? 0;
+      },
+    });
+    const debugSourceContainer = document.createElement('div');
+    const textNode = document.createTextNode('ignored');
+    Object.defineProperty(textNode, 'textContent', {
+      value: null,
+      configurable: true,
+    });
+    debugSourceContainer.appendChild(textNode);
+
+    const iterator = splitHtmlToPages('<p>ignored</p>', {
+      container,
+      debugSourceContainer,
+      pageHeight: 0,
+      debug: true,
+    });
+
+    const first = await iterator.next();
+    expect(first.value).toBeDefined();
+  });
 });
 
 describe('HtmlPageSplitter', () => {
@@ -112,5 +148,13 @@ describe('HtmlPageSplitter', () => {
     expect(second.done).toBeTrue();
     expect(pages.length).toBe(1);
     expect(pages[0]).toContain('a');
+  });
+
+  it('supports default constructor options', async () => {
+    const splitter = new HtmlPageSplitter();
+    const iterator = splitter.split('<p>content</p>');
+    const result = await iterator.next();
+
+    expect(result.value).toBeDefined();
   });
 });
