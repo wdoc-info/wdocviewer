@@ -80,7 +80,7 @@
             "karmaConfig": "karma.conf.js",
             "watch": false,
             "browsers": "ChromeHeadlessNoSandbox",
-            "codeCoverage": false,
+            "codeCoverage": true,
             "assets": [
               {
                 "glob": "**/*",

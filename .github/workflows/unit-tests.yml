@@ -24,4 +24,4 @@ jobs:
       - name: Run unit tests
         env:
           CI: true
-        run: npm test -- --watch=false --browsers=ChromeHeadlessNoSandbox --progress=false
+        run: npm test -- --watch=false --browsers=ChromeHeadlessNoSandbox --progress=false --code-coverage
