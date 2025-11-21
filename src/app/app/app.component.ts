@@ -15,6 +15,9 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { ViewerComponent } from '../viewer/viewer.component';
 import { TopbarComponent } from '../topbar/topbar.component';
 import { MatDrawerMode, MatSidenavModule } from '@angular/material/sidenav';
+import { QRCodeToDataURLOptions } from 'qrcode';
+import QRCode from 'qrcode';
+import JsBarcode from 'jsbarcode';
 
 @Component({
   selector: 'app-root',
@@ -528,6 +531,8 @@ export class AppComponent implements OnInit, OnDestroy {
     newStyleEl.textContent = combinedCSS;
     doc.body.insertBefore(newStyleEl, doc.body.firstChild);
 
+    await this.renderBarcodes(doc);
+
     // 7. If the document does not contain any <wdoc-page> elements, paginate it.
     if (!doc.querySelector('wdoc-page')) {
       const templateMeasurements = this.prepareTemplates(doc);
@@ -719,6 +724,142 @@ export class AppComponent implements OnInit, OnDestroy {
       const formatted = this.formatDate(date, format);
       el.textContent = formatted;
     });
+  }
+
+  private async renderBarcodes(doc: Document): Promise<void> {
+    const barcodes = Array.from(doc.querySelectorAll('wdoc-barcode'));
+    for (const barcode of barcodes) {
+      const value = barcode.textContent?.trim();
+      if (!value) {
+        barcode.replaceWith(doc.createTextNode(''));
+        continue;
+      }
+
+      barcode.setAttribute('text', value);
+      const type = (barcode.getAttribute('type') || 'qrcode').toLowerCase();
+      if (type === 'qrcode') {
+        await this.renderQrCode(barcode, value, doc);
+        continue;
+      }
+
+      await this.renderLinearBarcode(barcode, value, type, doc);
+    }
+  }
+
+  private async renderQrCode(
+    barcode: Element,
+    value: string,
+    doc: Document,
+  ): Promise<void> {
+    const errorCorrection = this.normalizeErrorCorrectionLevel(
+      barcode.getAttribute('errorcorrection'),
+    );
+    try {
+      const dataUrl = await this.generateQrCodeDataUrl(value, {
+        errorCorrectionLevel: errorCorrection,
+      });
+      const img = doc.createElement('img');
+      img.setAttribute('src', dataUrl);
+      this.copyBarcodeAttributes(barcode, img);
+      barcode.replaceChildren(img);
+    } catch (error) {
+      console.error('Failed to render QR code', error);
+    }
+  }
+
+  private async renderLinearBarcode(
+    barcode: Element,
+    value: string,
+    type: string,
+    doc: Document,
+  ): Promise<void> {
+    const format = this.normalizeLinearBarcodeType(type);
+    if (!format) {
+      console.warn(`Unsupported barcode type: ${type}`);
+      return;
+    }
+
+    const svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    this.copyBarcodeAttributes(barcode, svg);
+    try {
+      this.generateLinearBarcode(svg, value, format);
+      barcode.replaceChildren(svg);
+    } catch (error) {
+      console.error(`Failed to render barcode of type ${format}`, error);
+    }
+  }
+
+  private normalizeErrorCorrectionLevel(
+    level: string | null,
+  ): QRCodeToDataURLOptions['errorCorrectionLevel'] {
+    const upper = level?.toUpperCase();
+    switch (upper) {
+      case 'L':
+      case 'M':
+      case 'Q':
+      case 'H':
+        return upper;
+      default:
+        return 'M';
+    }
+  }
+
+  private normalizeLinearBarcodeType(type: string): string | null {
+    switch (type.toLowerCase()) {
+      case 'code128':
+        return 'CODE128';
+      case 'ean':
+        return 'EAN';
+      case 'upc':
+        return 'UPC';
+      case 'code39':
+        return 'CODE39';
+      case 'itf14':
+        return 'ITF14';
+      case 'msi':
+        return 'MSI';
+      case 'pharmacode':
+        return 'pharmacode';
+      case 'codabar':
+        return 'codabar';
+      default:
+        return null;
+    }
+  }
+
+  private copyBarcodeAttributes(source: Element, target: Element): void {
+    const attributesToCopy = [
+      'class',
+      'style',
+      'width',
+      'height',
+      'id',
+      'title',
+      'aria-label',
+      'aria-describedby',
+    ];
+
+    attributesToCopy.forEach((attr) => {
+      const value = source.getAttribute(attr);
+      if (value !== null) {
+        target.setAttribute(attr, value);
+      }
+    });
+  }
+
+  private generateLinearBarcode(
+    target: SVGElement,
+    value: string,
+    format: string,
+  ): void {
+    JsBarcode(target, value, { format });
+  }
+
+  private generateQrCodeDataUrl(
+    value: string,
+    options: QRCodeToDataURLOptions,
+  ): Promise<string> {
+    return QRCode.toDataURL(value, options);
   }
 
   private formatDate(date: Date, format = 'dd/mm/YYYY'): string {
