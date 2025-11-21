@@ -519,7 +519,12 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // 7. If the document does not contain any <wdoc-page> elements, paginate it.
     if (!doc.querySelector('wdoc-page')) {
-      await this.paginateContent(doc);
+      const templateMeasurements = this.prepareTemplates(doc);
+      await this.paginateContent(
+        doc,
+        templateMeasurements.headerHeight + templateMeasurements.footerHeight,
+      );
+      this.applyTemplatesToPages(doc, templateMeasurements);
     } else {
       // If there is no wdoc-container, we add it
       if (
@@ -533,21 +538,8 @@ export class AppComponent implements OnInit, OnDestroy {
         }
         doc.body.appendChild(wdocContainer);
       }
-    }
-
-    const headerTemplate = this.extractTemplate(doc, 'wdoc-header');
-    const footerTemplate = this.extractTemplate(doc, 'wdoc-footer');
-
-    if (headerTemplate || footerTemplate) {
-      const pages = Array.from(doc.querySelectorAll('wdoc-page'));
-      pages.forEach((page) => {
-        if (headerTemplate) {
-          page.insertBefore(headerTemplate.cloneNode(true), page.firstChild);
-        }
-        if (footerTemplate) {
-          page.appendChild(footerTemplate.cloneNode(true));
-        }
-      });
+      const templateMeasurements = this.prepareTemplates(doc);
+      this.applyTemplatesToPages(doc, templateMeasurements);
     }
 
     await this.populateFormsFromZip(zip, doc);
@@ -575,12 +567,72 @@ export class AppComponent implements OnInit, OnDestroy {
     return template;
   }
 
+  private prepareTemplates(doc: Document): {
+    headerTemplate: Element | null;
+    footerTemplate: Element | null;
+    headerHeight: number;
+    footerHeight: number;
+  } {
+    const headerTemplate = this.extractTemplate(doc, 'wdoc-header');
+    const footerTemplate = this.extractTemplate(doc, 'wdoc-footer');
+
+    const headerHeight = headerTemplate
+      ? this.measureTemplateHeight(headerTemplate)
+      : 0;
+    const footerHeight = footerTemplate
+      ? this.measureTemplateHeight(footerTemplate)
+      : 0;
+
+    return { headerTemplate, footerTemplate, headerHeight, footerHeight };
+  }
+
+  private measureTemplateHeight(template: Element): number {
+    if (!this.paginationContainer) {
+      return 0;
+    }
+
+    const wrapper = document.createElement('div');
+    wrapper.style.width = '100%';
+    wrapper.style.display = 'block';
+    wrapper.appendChild(template.cloneNode(true));
+    this.paginationContainer.appendChild(wrapper);
+    const height = Math.ceil(wrapper.getBoundingClientRect().height);
+    this.paginationContainer.removeChild(wrapper);
+    return height;
+  }
+
+  private applyTemplatesToPages(
+    doc: Document,
+    templates: {
+      headerTemplate: Element | null;
+      footerTemplate: Element | null;
+    },
+  ) {
+    const { headerTemplate, footerTemplate } = templates;
+    if (!headerTemplate && !footerTemplate) {
+      return;
+    }
+
+    const pages = Array.from(doc.querySelectorAll('wdoc-page'));
+    pages.forEach((page) => {
+      if (headerTemplate) {
+        page.insertBefore(headerTemplate.cloneNode(true), page.firstChild);
+      }
+      if (footerTemplate) {
+        page.appendChild(footerTemplate.cloneNode(true));
+      }
+    });
+  }
+
   /**
    * Paginate the document body into <wdoc-page> elements, each wrapped in a div for scaling.
    *
    * TODO: doesn t work, the example overflowing_text doesn t display on multiple pages
    */
-  private async paginateContent(doc: Document): Promise<void> {
+  private async paginateContent(
+    doc: Document,
+    reservedHeight = 0,
+  ): Promise<void> {
     if (!this.htmlPageSplitter) {
       console.warn('HtmlPageSplitter is not available; skipping pagination.');
       return;
@@ -608,8 +660,21 @@ export class AppComponent implements OnInit, OnDestroy {
     body.appendChild(wdocContainer);
 
     let hasPages = false;
+    const adjustedHeight = Math.max(
+      1,
+      (this.htmlPageSplitter.defaultOptions.pageHeight ?? 1122) -
+        Math.max(0, reservedHeight),
+    );
+
+    if (this.paginationContainer) {
+      this.paginationContainer.style.minHeight = `${adjustedHeight}px`;
+    }
+
     for await (const pageHtml of this.htmlPageSplitter.split(
-      wrapper.innerHTML
+      wrapper.innerHTML,
+      {
+        pageHeight: adjustedHeight,
+      }
     )) {
       const trimmed = pageHtml.trim();
       if (!trimmed) {

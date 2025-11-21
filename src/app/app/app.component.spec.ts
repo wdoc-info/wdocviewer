@@ -143,6 +143,41 @@ describe('AppComponent', () => {
     expect(pages.length).toBeGreaterThan(1);
   });
 
+  it('reserves header and footer height when paginating free-flow content', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const bodyBlocks = Array.from({ length: 4 })
+      .map(
+        (_, idx) =>
+          `<p style="display:block;height:200px;margin:0">Block ${idx}</p>`
+      )
+      .join('');
+
+    const html = `
+      <html>
+        <head></head>
+        <body>
+          <wdoc-header style="display:block;height:300px;">Header</wdoc-header>
+          <wdoc-footer style="display:block;height:300px;">Footer</wdoc-footer>
+          ${bodyBlocks}
+        </body>
+      </html>`;
+    const zip = new JSZip();
+
+    const promise = app.processHtml(zip, html);
+    const req = httpMock.expectOne('assets/wdoc-styles.css');
+    req.flush('');
+
+    const result = await promise;
+    httpMock.verify();
+
+    const doc = new DOMParser().parseFromString(result, 'text/html');
+    const pages = doc.querySelectorAll('wdoc-page');
+    expect(pages.length).toBeGreaterThan(1);
+  });
+
   it('should mark showSave when form input changes', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance as any;
