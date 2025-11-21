@@ -143,6 +143,111 @@ describe('AppComponent', () => {
     expect(pages.length).toBeGreaterThan(1);
   });
 
+  it('reserves header and footer height when paginating free-flow content', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const bodyBlocks = Array.from({ length: 4 })
+      .map(
+        (_, idx) =>
+          `<p style="display:block;height:200px;margin:0">Block ${idx}</p>`
+      )
+      .join('');
+
+    const html = `
+      <html>
+        <head></head>
+        <body>
+          <wdoc-header style="display:block;height:300px;">Header</wdoc-header>
+          <wdoc-footer style="display:block;height:300px;">Footer</wdoc-footer>
+          ${bodyBlocks}
+        </body>
+      </html>`;
+    const zip = new JSZip();
+
+    const promise = app.processHtml(zip, html);
+    const req = httpMock.expectOne('assets/wdoc-styles.css');
+    req.flush('');
+
+    const result = await promise;
+    httpMock.verify();
+
+    const doc = new DOMParser().parseFromString(result, 'text/html');
+    const pages = doc.querySelectorAll('wdoc-page');
+    expect(pages.length).toBeGreaterThan(1);
+  });
+
+  it('applies document CSS to pagination measurements', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const css = '<style>body { font-size: 120px; line-height: 140px; margin: 0; }</style>';
+    const longBody = Array.from({ length: 15 })
+      .map((_, idx) => `<p style="margin:0">Line ${idx}</p>`)
+      .join('');
+
+    const html = `<html><head>${css}</head><body>${longBody}</body></html>`;
+    const zip = new JSZip();
+
+    const promise = app.processHtml(zip, html);
+    const req = httpMock.expectOne('assets/wdoc-styles.css');
+    req.flush('');
+
+    const result = await promise;
+    httpMock.verify();
+
+    const doc = new DOMParser().parseFromString(result, 'text/html');
+    const pages = doc.querySelectorAll('wdoc-page');
+    expect(pages.length).toBeGreaterThan(1);
+  });
+
+  it('paginates free-flow content with headers and footers across pages', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const html = `
+      <html>
+        <head>
+          <title>Display header and footer on every page free flow</title>
+          <link rel="stylesheet" href="style.css" />
+        </head>
+        <body>
+          <wdoc-header>header here</wdoc-header>
+          <wdoc-footer>footer here</wdoc-footer>
+          <h1>Display header and footer on free flow document</h1>
+          <p>If you use a free flow document (no &lt;wdoc-page&gt;) it should also be working</p>
+          ${Array.from({ length: 22 })
+            .map(() => '<p>text</p>')
+            .join('')}
+          <p>end of the text</p>
+        </body>
+      </html>
+    `;
+
+    const zip = new JSZip();
+    zip.file(
+      'style.css',
+      'body { margin: 0; font-size: 20px; line-height: 32px; } p { margin: 24px 0; } h1 { margin: 32px 0; }'
+    );
+
+    const http = TestBed.inject(HttpClient);
+    spyOn(http, 'get').and.callFake((url: string, _options?: any) => {
+      if (url === 'assets/wdoc-styles.css') {
+        return of('' as any);
+      }
+      return throwError(() => new Error(`Unexpected URL ${url}`));
+    });
+
+    const result = await app.processHtml(zip, html);
+
+    const doc = new DOMParser().parseFromString(result, 'text/html');
+    const pages = doc.querySelectorAll('wdoc-page');
+    expect(pages.length).toBeGreaterThan(1);
+  });
+
   it('should mark showSave when form input changes', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance as any;
@@ -518,6 +623,40 @@ describe('AppComponent', () => {
     expect(doc.querySelector('style')!.textContent).toContain('.b');
     expect(doc.querySelector('style')!.textContent).toContain('body{margin:0;}');
     expect(httpSpy.calls.mostRecent().args[0]).toBe('assets/wdoc-styles.css');
+  });
+
+  it('replicates headers and footers across each page', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const http = TestBed.inject(HttpClient);
+
+    spyOn(http, 'get').and.returnValue(of(''));
+
+    const html =
+      '<html><head></head><body>' +
+      '<wdoc-header>hey header</wdoc-header>' +
+      '<wdoc-page><div>page 1</div></wdoc-page>' +
+      '<wdoc-page><div>page 2</div></wdoc-page>' +
+      '<wdoc-footer>hey footer</wdoc-footer>' +
+      '</body></html>';
+
+    const zip = new JSZip();
+    const processed = await app.processHtml(zip, html);
+
+    const doc = new DOMParser().parseFromString(processed, 'text/html');
+    const pages = Array.from(doc.querySelectorAll('wdoc-page'));
+
+    expect(pages.length).toBe(2);
+    pages.forEach((page) => {
+      const firstChild = page.firstElementChild as Element;
+      const lastChild = page.lastElementChild as Element;
+      expect(firstChild.tagName.toLowerCase()).toBe('wdoc-header');
+      expect(lastChild.tagName.toLowerCase()).toBe('wdoc-footer');
+    });
+
+    const container = doc.querySelector('wdoc-container');
+    expect(container?.querySelectorAll(':scope > wdoc-header').length).toBe(0);
+    expect(container?.querySelectorAll(':scope > wdoc-footer').length).toBe(0);
   });
 
   it('normalizes fit zoom to 100% when content already fits', () => {

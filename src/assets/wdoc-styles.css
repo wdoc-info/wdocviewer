@@ -10,6 +10,8 @@ wdoc-container {
 }
 /* Style for each "page" (A4 size, white background, shadow) */
 wdoc-page {
+  display: flex;
+  flex-direction: column;
   flex-shrink: 0;
   width: 793.8px; /* Approximate A4 width in pixels */
   height: 1122px; /* Approximate A4 height in pixels */
@@ -20,7 +22,13 @@ wdoc-page {
   padding: 20px;
   box-sizing: border-box;
   margin-bottom: 20px;
+}
+
+wdoc-page > wdoc-footer,
+wdoc-page > doc-footer {
+  margin-top: auto;
   display: block;
+  width: 100%;
 }
 
 @media (max-width: 840px) {
@@ -49,6 +57,8 @@ wdoc-page {
   }
 
   wdoc-page {
+    display: flex;
+    flex-direction: column;
     width: 793.8px;
     max-width: none;
     min-height: 1122px;

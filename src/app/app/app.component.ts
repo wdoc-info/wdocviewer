@@ -41,6 +41,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private readonly maxZoom = 200;
   documentTitle = this.defaultTitle;
   private originalArrayBuffer: ArrayBuffer | null = null;
+  private paginationStyleEl?: HTMLStyleElement;
   private resizeListener?: () => void;
   private isDesktop = false;
   private beforePrintListener?: () => void;
@@ -107,6 +108,9 @@ export class AppComponent implements OnInit, OnDestroy {
       if (this.afterPrintListener) {
         window.removeEventListener('afterprint', this.afterPrintListener);
       }
+    }
+    if (this.paginationStyleEl?.parentElement) {
+      this.paginationStyleEl.remove();
     }
     if (this.paginationContainer?.parentElement) {
       this.paginationContainer.remove();
@@ -507,6 +511,8 @@ export class AppComponent implements OnInit, OnDestroy {
       console.error('Error loading external CSS:', error);
     }
 
+    this.applyPaginationStyles(combinedCSS);
+
     // 5. Remove the existing head entirely.
     if (doc.head) {
       doc.head.remove();
@@ -519,7 +525,12 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // 7. If the document does not contain any <wdoc-page> elements, paginate it.
     if (!doc.querySelector('wdoc-page')) {
-      await this.paginateContent(doc);
+      const templateMeasurements = this.prepareTemplates(doc);
+      await this.paginateContent(
+        doc,
+        templateMeasurements.headerHeight + templateMeasurements.footerHeight,
+      );
+      this.applyTemplatesToPages(doc, templateMeasurements);
     } else {
       // If there is no wdoc-container, we add it
       if (
@@ -533,6 +544,8 @@ export class AppComponent implements OnInit, OnDestroy {
         }
         doc.body.appendChild(wdocContainer);
       }
+      const templateMeasurements = this.prepareTemplates(doc);
+      this.applyTemplatesToPages(doc, templateMeasurements);
     }
 
     await this.populateFormsFromZip(zip, doc);
@@ -544,10 +557,110 @@ export class AppComponent implements OnInit, OnDestroy {
     this.documentTitle = title && title.length > 0 ? title : this.defaultTitle;
   }
 
+  private applyPaginationStyles(cssText: string) {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    if (!this.paginationStyleEl) {
+      this.paginationStyleEl = document.createElement('style');
+      this.paginationStyleEl.setAttribute('data-pagination-styles', 'true');
+      document.head.appendChild(this.paginationStyleEl);
+    }
+
+    this.paginationStyleEl.textContent = cssText;
+
+    if (this.paginationContainer) {
+      const probePage = document.createElement('wdoc-page');
+      probePage.style.visibility = 'hidden';
+      probePage.style.position = 'absolute';
+      probePage.style.pointerEvents = 'none';
+      probePage.style.left = '0';
+      probePage.style.top = '0';
+      this.paginationContainer.appendChild(probePage);
+      const measuredHeight = Math.ceil(probePage.getBoundingClientRect().height);
+      this.paginationContainer.removeChild(probePage);
+      if (measuredHeight > 0) {
+        this.htmlPageSplitter = new HtmlPageSplitter({
+          ...this.htmlPageSplitter?.defaultOptions,
+          container: this.paginationContainer,
+          pageHeight: measuredHeight,
+        });
+      }
+    }
+  }
+
   private extractHeadTitle(doc: Document): string | null {
     const headTitle = doc.querySelector('head title');
     const titleText = headTitle?.textContent?.trim();
     return titleText && titleText.length > 0 ? titleText : null;
+  }
+
+  private extractTemplate(doc: Document, selector: string): Element | null {
+    const elements = Array.from(doc.querySelectorAll(selector));
+    if (elements.length === 0) {
+      return null;
+    }
+    const template = elements[0].cloneNode(true) as Element;
+    elements.forEach((element) => element.remove());
+    return template;
+  }
+
+  private prepareTemplates(doc: Document): {
+    headerTemplate: Element | null;
+    footerTemplate: Element | null;
+    headerHeight: number;
+    footerHeight: number;
+  } {
+    const headerTemplate = this.extractTemplate(doc, 'wdoc-header');
+    const footerTemplate = this.extractTemplate(doc, 'wdoc-footer');
+
+    const headerHeight = headerTemplate
+      ? this.measureTemplateHeight(headerTemplate)
+      : 0;
+    const footerHeight = footerTemplate
+      ? this.measureTemplateHeight(footerTemplate)
+      : 0;
+
+    return { headerTemplate, footerTemplate, headerHeight, footerHeight };
+  }
+
+  private measureTemplateHeight(template: Element): number {
+    if (!this.paginationContainer) {
+      return 0;
+    }
+
+    const wrapper = document.createElement('div');
+    wrapper.style.width = '100%';
+    wrapper.style.display = 'block';
+    wrapper.appendChild(template.cloneNode(true));
+    this.paginationContainer.appendChild(wrapper);
+    const height = Math.ceil(wrapper.getBoundingClientRect().height);
+    this.paginationContainer.removeChild(wrapper);
+    return height;
+  }
+
+  private applyTemplatesToPages(
+    doc: Document,
+    templates: {
+      headerTemplate: Element | null;
+      footerTemplate: Element | null;
+    },
+  ) {
+    const { headerTemplate, footerTemplate } = templates;
+    if (!headerTemplate && !footerTemplate) {
+      return;
+    }
+
+    const pages = Array.from(doc.querySelectorAll('wdoc-page'));
+    pages.forEach((page) => {
+      if (headerTemplate) {
+        page.insertBefore(headerTemplate.cloneNode(true), page.firstChild);
+      }
+      if (footerTemplate) {
+        page.appendChild(footerTemplate.cloneNode(true));
+      }
+    });
   }
 
   /**
@@ -555,7 +668,10 @@ export class AppComponent implements OnInit, OnDestroy {
    *
    * TODO: doesn t work, the example overflowing_text doesn t display on multiple pages
    */
-  private async paginateContent(doc: Document): Promise<void> {
+  private async paginateContent(
+    doc: Document,
+    reservedHeight = 0,
+  ): Promise<void> {
     if (!this.htmlPageSplitter) {
       console.warn('HtmlPageSplitter is not available; skipping pagination.');
       return;
@@ -583,8 +699,21 @@ export class AppComponent implements OnInit, OnDestroy {
     body.appendChild(wdocContainer);
 
     let hasPages = false;
+    const adjustedHeight = Math.max(
+      1,
+      (this.htmlPageSplitter.defaultOptions.pageHeight ?? 1122) -
+        Math.max(0, reservedHeight),
+    );
+
+    if (this.paginationContainer) {
+      this.paginationContainer.style.minHeight = `${adjustedHeight}px`;
+    }
+
     for await (const pageHtml of this.htmlPageSplitter.split(
-      wrapper.innerHTML
+      wrapper.innerHTML,
+      {
+        pageHeight: adjustedHeight,
+      }
     )) {
       const trimmed = pageHtml.trim();
       if (!trimmed) {
