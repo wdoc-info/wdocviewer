@@ -1,7 +1,5 @@
 @if (htmlContent) {
-  <div class="viewer-scroll" #scrollContainer>
-    <div #contentContainer class="viewer-content">
-      <div [innerHTML]="htmlContent"></div>
-    </div>
-  </div>
+<div #contentContainer>
+  <div [innerHTML]="htmlContent"></div>
+</div>
 }

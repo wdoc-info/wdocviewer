@@ -58,6 +58,7 @@ wdoc-page {
     page-break-inside: avoid;
     break-after: page;
     break-inside: avoid;
+    zoom: 1 !important;
   }
 
   wdoc-page:last-child {

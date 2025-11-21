@@ -38,7 +38,7 @@ export class AppComponent implements OnInit, OnDestroy {
   zoom = 100;
   private readonly defaultTitle = 'WDOC viewer';
   private readonly minZoom = 25;
-  private readonly maxZoom = 100;
+  private readonly maxZoom = 200;
   documentTitle = this.defaultTitle;
   private originalArrayBuffer: ArrayBuffer | null = null;
   private resizeListener?: () => void;
@@ -234,11 +234,11 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   private calculateFitZoom(): number | null {
-    if (!this.viewer || !this.viewer.nativeElement || !this.viewer.scrollElement) {
+    if (!this.viewer || !this.viewer.nativeElement) {
       return null;
     }
 
-    const containerWidth = this.viewer.scrollElement.clientWidth;
+    const containerWidth = this.viewer.nativeElement.clientWidth;
     if (!containerWidth) {
       return null;
     }
@@ -256,7 +256,7 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     const fitPercent = Math.floor(((containerWidth - 24) / baseWidth) * 100);
-    return this.clampZoom(fitPercent);
+    return fitPercent > 100 ? 100 : fitPercent;
   }
 
   private async fetchAndLoadWdoc(url: string): Promise<void> {
@@ -335,7 +335,11 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   async onSaveForms() {
-    if (!this.originalArrayBuffer || !this.viewer || !this.viewer.nativeElement) {
+    if (
+      !this.originalArrayBuffer ||
+      !this.viewer ||
+      !this.viewer.nativeElement
+    ) {
       return;
     }
     const newZip = await JSZip.loadAsync(this.originalArrayBuffer);

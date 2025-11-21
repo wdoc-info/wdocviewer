@@ -42,33 +42,19 @@ export class ViewerComponent implements AfterViewInit, OnChanges {
     return this.contentContainer?.nativeElement as HTMLElement;
   }
 
-  get scrollElement(): HTMLElement | undefined {
-    return this.scrollContainer?.nativeElement as HTMLElement;
-  }
-
   private applyZoom() {
-    const container = this.contentContainer?.nativeElement as HTMLElement | null;
+    const container = this.contentContainer
+      ?.nativeElement as HTMLElement | null;
     if (!container) {
       return;
     }
     const scale = Math.max(10, this.zoom) / 100;
-    container.style.setProperty('--viewer-scale', `${scale}`);
 
     const pages = Array.from(
       container.querySelectorAll('wdoc-page')
     ) as HTMLElement[];
 
-    if (pages.length === 0) {
-      container.style.zoom = `${scale}`;
-      container.style.transform = '';
-      return;
-    }
-
-    container.style.zoom = '';
-    container.style.transform = '';
     pages.forEach((page) => {
-      page.style.transform = '';
-      page.style.transformOrigin = 'top center';
       page.style.zoom = `${scale}`;
     });
   }
