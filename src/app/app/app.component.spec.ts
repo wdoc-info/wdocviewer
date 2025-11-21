@@ -105,7 +105,8 @@ describe('AppComponent', () => {
     const app = fixture.componentInstance;
     const httpMock = TestBed.inject(HttpTestingController);
 
-    const html = '<html><head></head><body><h1>Doc</h1><p>Content</p></body></html>';
+    const html =
+      '<html><head></head><body><h1>Doc</h1><p>Content</p></body></html>';
     const zip = new JSZip();
 
     const promise = app.processHtml(zip, html);
@@ -178,12 +179,33 @@ describe('AppComponent', () => {
     expect(pages.length).toBeGreaterThan(1);
   });
 
+  it('display multi page header and footer correctly', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const html = `<html><head><title>Display header and footer on every page free flow</title>  </head>  <body> <wdoc-header>header here</wdoc-header> <wdoc-footer>footer here</wdoc-footer> <h1>Display header and footer on free flow document</h1><p>If you use a free flow document (no &lt;wdoc-page&gt;) it should also be working</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>end of the text</p></body></html>`;
+    const zip = new JSZip();
+
+    const promise = app.processHtml(zip, html);
+    const req = httpMock.expectOne('assets/wdoc-styles.css');
+    req.flush('');
+
+    const result = await promise;
+    httpMock.verify();
+
+    const doc = new DOMParser().parseFromString(result, 'text/html');
+    const pages = doc.querySelectorAll('wdoc-page');
+    expect(pages.length).toBeGreaterThan(1);
+  });
+
   it('applies document CSS to pagination measurements', async () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
     const httpMock = TestBed.inject(HttpTestingController);
 
-    const css = '<style>body { font-size: 120px; line-height: 140px; margin: 0; }</style>';
+    const css =
+      '<style>body { font-size: 120px; line-height: 140px; margin: 0; }</style>';
     const longBody = Array.from({ length: 15 })
       .map((_, idx) => `<p style="margin:0">Line ${idx}</p>`)
       .join('');
@@ -352,9 +374,10 @@ describe('AppComponent', () => {
 
     const dropPreventDefault = jasmine.createSpy('dropPreventDefault');
     const selectSpy = spyOn(app, 'onFileSelected');
-    app.onDrop(
-      { preventDefault: dropPreventDefault, dataTransfer } as unknown as DragEvent
-    );
+    app.onDrop({
+      preventDefault: dropPreventDefault,
+      dataTransfer,
+    } as unknown as DragEvent);
 
     expect(dropPreventDefault).toHaveBeenCalled();
     expect(selectSpy).toHaveBeenCalledWith(wdocFile);
@@ -380,7 +403,10 @@ describe('AppComponent', () => {
       '<form id="f1"><input name="username"/><input type="file" name="photo"/></form>';
     zip.file('index.html', html);
     const folder = zip.folder('wdoc-form')!;
-    folder.file('f1.json', JSON.stringify({ username: 'bob', photo: 'img.txt' }));
+    folder.file(
+      'f1.json',
+      JSON.stringify({ username: 'bob', photo: 'img.txt' })
+    );
     folder.file('img.txt', 'data');
 
     const processedPromise = app.processHtml(zip, html);
@@ -390,8 +416,12 @@ describe('AppComponent', () => {
     httpMock.verify();
 
     const doc = new DOMParser().parseFromString(processed, 'text/html');
-    expect((doc.querySelector('input[name="username"]') as HTMLInputElement).value).toBe('bob');
-    const link = doc.querySelector('input[name="photo"] + a') as HTMLAnchorElement;
+    expect(
+      (doc.querySelector('input[name="username"]') as HTMLInputElement).value
+    ).toBe('bob');
+    const link = doc.querySelector(
+      'input[name="photo"] + a'
+    ) as HTMLAnchorElement;
     expect(link).toBeTruthy();
     expect(link.textContent).toBe('img.txt');
     expect(link.getAttribute('download')).toBe('img.txt');
@@ -576,7 +606,9 @@ describe('AppComponent', () => {
     expect(firstImg).toBeTruthy();
     expect(doc.querySelectorAll('img').length).toBe(1);
     expect(doc.querySelector('style')!.textContent).toContain('.b');
-    expect(doc.querySelector('style')!.textContent).toContain('body{margin:0;}');
+    expect(doc.querySelector('style')!.textContent).toContain(
+      'body{margin:0;}'
+    );
     expect(httpSpy.calls.mostRecent().args[0]).toBe('assets/wdoc-styles.css');
   });
 
@@ -668,7 +700,9 @@ describe('AppComponent', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance as any;
 
-    expect(app['containsFiles']({ dataTransfer: null } as DragEvent)).toBeFalse();
+    expect(
+      app['containsFiles']({ dataTransfer: null } as DragEvent)
+    ).toBeFalse();
     expect(
       app['containsFiles']({
         dataTransfer: { types: ['text/plain'] },
@@ -726,7 +760,9 @@ describe('AppComponent', () => {
     expect(app['guessMimeType']('image.gif')).toBe('image/gif');
     expect(app['guessMimeType']('document.pdf')).toBe('application/pdf');
     expect(app['guessMimeType']('notes.txt')).toBe('text/plain');
-    expect(app['guessMimeType']('unknown.bin')).toBe('application/octet-stream');
+    expect(app['guessMimeType']('unknown.bin')).toBe(
+      'application/octet-stream'
+    );
 
     expect(app['determineRole']('index.html')).toBe('doc_core');
     expect(app['determineRole']('wdoc-form/f1.json')).toBe('form_instance');
@@ -838,7 +874,8 @@ describe('AppComponent', () => {
     spyOn(http, 'get').and.returnValue(throwError(() => new Error('no css')));
     const errorSpy = spyOn(console, 'error');
 
-    const html = '<html><head></head><body><wdoc-page></wdoc-page></body></html>';
+    const html =
+      '<html><head></head><body><wdoc-page></wdoc-page></body></html>';
     const zip = new JSZip();
     await app.processHtml(zip, html);
 
@@ -866,7 +903,13 @@ describe('AppComponent', () => {
     const folder = zip.folder('wdoc-form')!;
     folder.file(
       'f2.json',
-      JSON.stringify({ agree: '1', choice: 'b', country: 'CA', notes: 'hello', upload: 'asset.bin' })
+      JSON.stringify({
+        agree: '1',
+        choice: 'b',
+        country: 'CA',
+        notes: 'hello',
+        upload: 'asset.bin',
+      })
     );
     folder.file('asset.bin', 'file-data');
 
@@ -875,15 +918,25 @@ describe('AppComponent', () => {
 
     const doc = new DOMParser().parseFromString(html, 'text/html');
     await (app as any).populateFormsFromZip(zip, doc);
-    expect((doc.querySelector('input[name="agree"]') as HTMLInputElement).checked).toBeTrue();
-    const radio = doc.querySelector('input[name="choice"][value="b"]') as HTMLInputElement;
+    expect(
+      (doc.querySelector('input[name="agree"]') as HTMLInputElement).checked
+    ).toBeTrue();
+    const radio = doc.querySelector(
+      'input[name="choice"][value="b"]'
+    ) as HTMLInputElement;
     expect(radio.checked).toBeTrue();
-    const select = doc.querySelector('select[name="country"]') as HTMLSelectElement;
+    const select = doc.querySelector(
+      'select[name="country"]'
+    ) as HTMLSelectElement;
     expect(select.value).toBe('CA');
-    const textarea = doc.querySelector('textarea[name="notes"]') as HTMLTextAreaElement;
+    const textarea = doc.querySelector(
+      'textarea[name="notes"]'
+    ) as HTMLTextAreaElement;
     expect(textarea.value).toBe('hello');
     expect(textarea.textContent).toBe('hello');
-    const link = doc.querySelector('input[name="upload"] + a') as HTMLAnchorElement;
+    const link = doc.querySelector(
+      'input[name="upload"] + a'
+    ) as HTMLAnchorElement;
     expect(link).toBeTruthy();
     expect(link.getAttribute('download')).toBe('asset.bin');
     expect(link.href).toBe('blob:link');
