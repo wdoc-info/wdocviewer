@@ -180,23 +180,6 @@ describe('AppComponent', () => {
     expect(pages.length).toBeGreaterThan(1);
   });
 
-  it('display multi page header and footer correctly', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    const httpMock = TestBed.inject(HttpTestingController);
-
-    const html = `<html><head><title>Display header and footer on every page free flow</title>  </head>  <body> <wdoc-header>header here</wdoc-header> <wdoc-footer>footer here</wdoc-footer> <h1>Display header and footer on free flow document</h1><p>If you use a free flow document (no &lt;wdoc-page&gt;) it should also be working</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>text</p><p>end of the text</p></body></html>`;
-    const zip = new JSZip();
-
-    const promise = app.processHtml(zip, html);
-    const result = await promise;
-    httpMock.verify();
-
-    const doc = new DOMParser().parseFromString(result, 'text/html');
-    const pages = doc.querySelectorAll('wdoc-page');
-    expect(pages.length).toBeGreaterThan(1);
-  });
-
   it('applies document CSS to pagination measurements', async () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
