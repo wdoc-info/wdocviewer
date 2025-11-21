@@ -553,6 +553,8 @@ export class AppComponent implements OnInit, OnDestroy {
       this.applyTemplatesToPages(doc, templateMeasurements);
     }
 
+    this.applyPageMetadata(doc);
+
     await this.populateFormsFromZip(zip, doc);
     return doc.documentElement.outerHTML;
   }
@@ -667,6 +669,75 @@ export class AppComponent implements OnInit, OnDestroy {
     page.appendChild(fragment);
 
     return content;
+  }
+
+  private applyPageMetadata(doc: Document): void {
+    const container = doc.querySelector('wdoc-container');
+    const targetRoots = container ? [container] : [doc.body];
+    const pages = targetRoots.flatMap((root) =>
+      Array.from(root.querySelectorAll('wdoc-page')).filter(
+        (page) => page.parentElement === root,
+      ),
+    );
+    const totalPages = pages.length;
+    const now = new Date();
+
+    pages.forEach((page, index) => {
+      const pageNumber = (index + 1).toString();
+      this.replacePlaceholders(
+        page,
+        'wdoc-pagenum',
+        pageNumber,
+        page.ownerDocument || doc,
+      );
+      this.replacePlaceholders(
+        page,
+        'wdoc-nbpages',
+        totalPages.toString(),
+        page.ownerDocument || doc,
+      );
+      this.replaceDatePlaceholders(page, now, page.ownerDocument || doc);
+    });
+  }
+
+  private replacePlaceholders(
+    container: Element,
+    selector: string,
+    text: string,
+    doc: Document,
+  ): void {
+    const placeholders = Array.from(container.querySelectorAll(selector));
+    placeholders.forEach((el) => {
+      el.textContent = text;
+    });
+  }
+
+  private replaceDatePlaceholders(page: Element, date: Date, doc: Document): void {
+    const placeholders = Array.from(page.querySelectorAll('wdoc-date'));
+    placeholders.forEach((el) => {
+      const format = el.getAttribute('format') || undefined;
+      const formatted = this.formatDate(date, format);
+      el.textContent = formatted;
+    });
+  }
+
+  private formatDate(date: Date, format = 'dd/mm/YYYY'): string {
+    const year = date.getFullYear().toString();
+    const month = this.padWithZero(date.getMonth() + 1);
+    const day = this.padWithZero(date.getDate());
+
+    let result = format;
+    result = result.replace(/YYYY/g, year);
+    result = result.replace(/Y/g, year);
+    result = result.replace(/MM/g, month);
+    result = result.replace(/mm/g, month);
+    result = result.replace(/DD/g, day);
+    result = result.replace(/dd/g, day);
+    return result;
+  }
+
+  private padWithZero(value: number): string {
+    return value.toString().padStart(2, '0');
   }
 
   private measureTemplateHeight(template: Element): number {
