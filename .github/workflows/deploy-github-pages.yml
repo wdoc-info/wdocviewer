@@ -27,7 +27,7 @@ jobs:
 
       - name: Build Angular wdocviewer
         run: |
-          npm run build -- --configuration=production --base-href="/wdoc-webapp/"
+          npm run build -- --configuration=production --base-href="/"
         # équivalent à : npx ng build wdocviewer --configuration=production --base-href="/wdoc-webapp/"
 
       - name: Deploy to GitHub Pages
