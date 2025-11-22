@@ -69,6 +69,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     if (typeof window !== 'undefined') {
+      this.setupFileHandler();
       this.applyResponsiveLayout(window.innerWidth);
       this.resizeListener = () => this.onWindowResize(window.innerWidth);
       window.addEventListener('resize', this.resizeListener);
@@ -130,6 +131,26 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     };
     reader.readAsArrayBuffer(file);
+  }
+
+  private setupFileHandler() {
+    const w = window as any;
+
+    if (!('launchQueue' in window)) {
+      // Not supported (non-Chromium or not installed)
+      return;
+    }
+
+    w.launchQueue.setConsumer(async (launchParams: any) => {
+      if (!launchParams.files || !launchParams.files.length) {
+        return;
+      }
+
+      for (const fileHandle of launchParams.files) {
+        const file = await fileHandle.getFile(); // File object
+        this.onFileSelected(file); // reuse your existing flow
+      }
+    });
   }
 
   toggleNav() {
@@ -538,7 +559,7 @@ export class AppComponent implements OnInit, OnDestroy {
       const templateMeasurements = this.prepareTemplates(doc);
       await this.paginateContent(
         doc,
-        templateMeasurements.headerHeight + templateMeasurements.footerHeight,
+        templateMeasurements.headerHeight + templateMeasurements.footerHeight
       );
       this.applyTemplatesToPages(doc, templateMeasurements);
     } else {
@@ -590,7 +611,9 @@ export class AppComponent implements OnInit, OnDestroy {
       probePage.style.left = '0';
       probePage.style.top = '0';
       this.paginationContainer.appendChild(probePage);
-      const measuredHeight = Math.ceil(probePage.getBoundingClientRect().height);
+      const measuredHeight = Math.ceil(
+        probePage.getBoundingClientRect().height
+      );
       this.paginationContainer.removeChild(probePage);
       if (measuredHeight > 0) {
         this.htmlPageSplitter = new HtmlPageSplitter({
@@ -681,8 +704,8 @@ export class AppComponent implements OnInit, OnDestroy {
     const targetRoots = container ? [container] : [doc.body];
     const pages = targetRoots.flatMap((root) =>
       Array.from(root.querySelectorAll('wdoc-page')).filter(
-        (page) => page.parentElement === root,
-      ),
+        (page) => page.parentElement === root
+      )
     );
     const totalPages = pages.length;
     const now = new Date();
@@ -693,13 +716,13 @@ export class AppComponent implements OnInit, OnDestroy {
         page,
         'wdoc-pagenum',
         pageNumber,
-        page.ownerDocument || doc,
+        page.ownerDocument || doc
       );
       this.replacePlaceholders(
         page,
         'wdoc-nbpages',
         totalPages.toString(),
-        page.ownerDocument || doc,
+        page.ownerDocument || doc
       );
       this.replaceDatePlaceholders(page, now, page.ownerDocument || doc);
     });
@@ -709,7 +732,7 @@ export class AppComponent implements OnInit, OnDestroy {
     container: Element,
     selector: string,
     text: string,
-    doc: Document,
+    doc: Document
   ): void {
     const placeholders = Array.from(container.querySelectorAll(selector));
     placeholders.forEach((el) => {
@@ -717,7 +740,11 @@ export class AppComponent implements OnInit, OnDestroy {
     });
   }
 
-  private replaceDatePlaceholders(page: Element, date: Date, doc: Document): void {
+  private replaceDatePlaceholders(
+    page: Element,
+    date: Date,
+    doc: Document
+  ): void {
     const placeholders = Array.from(page.querySelectorAll('wdoc-date'));
     placeholders.forEach((el) => {
       const format = el.getAttribute('format') || undefined;
@@ -749,10 +776,10 @@ export class AppComponent implements OnInit, OnDestroy {
   private async renderQrCode(
     barcode: Element,
     value: string,
-    doc: Document,
+    doc: Document
   ): Promise<void> {
     const errorCorrection = this.normalizeErrorCorrectionLevel(
-      barcode.getAttribute('errorcorrection'),
+      barcode.getAttribute('errorcorrection')
     );
     try {
       const dataUrl = await this.generateQrCodeDataUrl(value, {
@@ -771,7 +798,7 @@ export class AppComponent implements OnInit, OnDestroy {
     barcode: Element,
     value: string,
     type: string,
-    doc: Document,
+    doc: Document
   ): Promise<void> {
     const format = this.normalizeLinearBarcodeType(type);
     if (!format) {
@@ -790,7 +817,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   private normalizeErrorCorrectionLevel(
-    level: string | null,
+    level: string | null
   ): QRCodeToDataURLOptions['errorCorrectionLevel'] {
     const upper = level?.toUpperCase();
     switch (upper) {
@@ -850,14 +877,14 @@ export class AppComponent implements OnInit, OnDestroy {
   private generateLinearBarcode(
     target: SVGElement,
     value: string,
-    format: string,
+    format: string
   ): void {
     JsBarcode(target, value, { format });
   }
 
   private generateQrCodeDataUrl(
     value: string,
-    options: QRCodeToDataURLOptions,
+    options: QRCodeToDataURLOptions
   ): Promise<string> {
     return QRCode.toDataURL(value, options);
   }
@@ -901,7 +928,7 @@ export class AppComponent implements OnInit, OnDestroy {
     templates: {
       headerTemplate: Element | null;
       footerTemplate: Element | null;
-    },
+    }
   ) {
     const { headerTemplate, footerTemplate } = templates;
 
@@ -925,7 +952,7 @@ export class AppComponent implements OnInit, OnDestroy {
    */
   private async paginateContent(
     doc: Document,
-    reservedHeight = 0,
+    reservedHeight = 0
   ): Promise<void> {
     if (!this.htmlPageSplitter) {
       console.warn('HtmlPageSplitter is not available; skipping pagination.');
@@ -957,7 +984,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const adjustedHeight = Math.max(
       1,
       (this.htmlPageSplitter.defaultOptions.pageHeight ?? 1122) -
-        Math.max(0, reservedHeight),
+        Math.max(0, reservedHeight)
     );
 
     if (this.paginationContainer) {
