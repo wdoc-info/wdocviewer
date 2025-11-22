@@ -5,6 +5,8 @@ import {
   HttpTestingController,
 } from '@angular/common/http/testing';
 import { AppComponent } from './app.component';
+import { HtmlProcessingService } from '../services/html-processing.service';
+import { WdocLoaderService } from '../services/wdoc-loader.service';
 import JSZip from 'jszip';
 import { of, throwError } from 'rxjs';
 
@@ -29,10 +31,15 @@ const createFileList = (files: File[]): FileList => {
 };
 
 describe('AppComponent', () => {
+  const getHtmlService = () =>
+    TestBed.inject(HtmlProcessingService) as unknown as any;
+  let htmlService: any;
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [HttpClientTestingModule, AppComponent],
     }).compileComponents();
+    htmlService = getHtmlService();
   });
 
   it('should create the app', () => {
@@ -42,19 +49,18 @@ describe('AppComponent', () => {
   });
 
   it('processHtml should strip script and iframe tags', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
+    const htmlService = getHtmlService();
     const httpMock = TestBed.inject(HttpTestingController);
 
     const html =
       '<html><head></head><body><wdoc-page></wdoc-page><script src="foo.js"></script><iframe></iframe><div>ok</div></body></html>';
     const zip = new JSZip();
 
-    const promise = app.processHtml(zip, html);
+    const promise = htmlService.processHtml(zip, html);
     const req = httpMock.expectOne('assets/wdoc-styles.css');
     req.flush('');
 
-    const result = await promise;
+    const result = (await promise).html;
     httpMock.verify();
 
     expect(result).not.toContain('<script');
@@ -63,30 +69,28 @@ describe('AppComponent', () => {
   });
 
   it('updates documentTitle from the head title element', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
+    const htmlService = getHtmlService();
     const httpMock = TestBed.inject(HttpTestingController);
 
     const html =
       '<html><head><title>Passport Application</title></head><body><main>Content</main></body></html>';
     const zip = new JSZip();
 
-    const promise = app.processHtml(zip, html);
+    const promise = htmlService.processHtml(zip, html);
     const req = httpMock.expectOne('assets/wdoc-styles.css');
     req.flush('');
 
-    await promise;
+    const result = (await promise).html;
     httpMock.verify();
 
-    expect(app.documentTitle).toBe('Passport Application');
+    expect(result.documentTitle).toBe('Passport Application');
   });
 
   it('renders QR codes with the requested error correction level', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance as any;
+    const htmlService = getHtmlService();
     const httpMock = TestBed.inject(HttpTestingController);
 
-    const qrSpy = spyOn<any>(app, 'generateQrCodeDataUrl').and.callFake(
+    const qrSpy = spyOn<any>(htmlService, 'generateQrCodeDataUrl').and.callFake(
       (_value: string, options: any) => {
         return Promise.resolve(`data:${options.errorCorrectionLevel}`);
       },
@@ -96,10 +100,10 @@ describe('AppComponent', () => {
       '<html><head></head><body><wdoc-page><wdoc-barcode errorcorrection="H">hello</wdoc-barcode></wdoc-page></body></html>';
     const zip = new JSZip();
 
-    const promise = app.processHtml(zip, html);
+    const promise = htmlService.processHtml(zip, html);
     const req = httpMock.expectOne('assets/wdoc-styles.css');
     req.flush('');
-    const result = await promise;
+    const result = (await promise).html;
     httpMock.verify();
 
     expect(qrSpy).toHaveBeenCalledWith(
@@ -115,11 +119,10 @@ describe('AppComponent', () => {
   });
 
   it('renders linear barcodes through JsBarcode', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance as any;
+    const htmlService = getHtmlService();
     const httpMock = TestBed.inject(HttpTestingController);
 
-    const barcodeSpy = spyOn<any>(app, 'generateLinearBarcode').and.callFake(
+    const barcodeSpy = spyOn<any>(htmlService, 'generateLinearBarcode').and.callFake(
       (target: SVGElement, value: string, format: string) => {
         target.setAttribute('data-format', format);
         target.setAttribute('data-value', value);
@@ -130,10 +133,10 @@ describe('AppComponent', () => {
       '<html><head></head><body><wdoc-page><wdoc-barcode type="CODE128">ABC123</wdoc-barcode></wdoc-page></body></html>';
     const zip = new JSZip();
 
-    const promise = app.processHtml(zip, html);
+    const promise = htmlService.processHtml(zip, html);
     const req = httpMock.expectOne('assets/wdoc-styles.css');
     req.flush('');
-    const result = await promise;
+    const result = (await promise).html;
     httpMock.verify();
 
     expect(barcodeSpy).toHaveBeenCalledWith(
@@ -151,11 +154,10 @@ describe('AppComponent', () => {
   });
 
   it('falls back to QR codes and default error correction when type is missing', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance as any;
+    const htmlService = getHtmlService();
     const httpMock = TestBed.inject(HttpTestingController);
 
-    const qrSpy = spyOn<any>(app, 'generateQrCodeDataUrl').and.resolveTo(
+    const qrSpy = spyOn<any>(htmlService, 'generateQrCodeDataUrl').and.resolveTo(
       'data:default',
     );
 
@@ -163,10 +165,10 @@ describe('AppComponent', () => {
       '<html><head></head><body><wdoc-page><wdoc-barcode>abc</wdoc-barcode></wdoc-page></body></html>';
     const zip = new JSZip();
 
-    const promise = app.processHtml(zip, html);
+    const promise = htmlService.processHtml(zip, html);
     const req = httpMock.expectOne('assets/wdoc-styles.css');
     req.flush('');
-    const result = await promise;
+    const result = (await promise).html;
     httpMock.verify();
 
     expect(qrSpy).toHaveBeenCalledWith(
@@ -182,20 +184,19 @@ describe('AppComponent', () => {
   });
 
   it('ignores unsupported barcode types gracefully', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance as any;
+    const htmlService = getHtmlService();
     const httpMock = TestBed.inject(HttpTestingController);
 
-    const linearSpy = spyOn<any>(app, 'generateLinearBarcode');
+    const linearSpy = spyOn<any>(htmlService, 'generateLinearBarcode');
 
     const html =
       '<html><head></head><body><wdoc-page><wdoc-barcode type="unknown">123</wdoc-barcode></wdoc-page></body></html>';
     const zip = new JSZip();
 
-    const promise = app.processHtml(zip, html);
+    const promise = htmlService.processHtml(zip, html);
     const req = httpMock.expectOne('assets/wdoc-styles.css');
     req.flush('');
-    const result = await promise;
+    const result = (await promise).html;
     httpMock.verify();
 
     expect(linearSpy).not.toHaveBeenCalled();
@@ -206,18 +207,17 @@ describe('AppComponent', () => {
   });
 
   it('removes empty barcode placeholders', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance as any;
+    const htmlService = getHtmlService();
     const httpMock = TestBed.inject(HttpTestingController);
 
     const html =
       '<html><head></head><body><wdoc-page><wdoc-barcode>   </wdoc-barcode></wdoc-page></body></html>';
     const zip = new JSZip();
 
-    const promise = app.processHtml(zip, html);
+    const promise = htmlService.processHtml(zip, html);
     const req = httpMock.expectOne('assets/wdoc-styles.css');
     req.flush('');
-    const result = await promise;
+    const result = (await promise).html;
     httpMock.verify();
 
     const doc = new DOMParser().parseFromString(result, 'text/html');
@@ -226,11 +226,10 @@ describe('AppComponent', () => {
   });
 
   it('normalizes linear barcode formats and preserves styling', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance as any;
+    const htmlService = getHtmlService();
     const httpMock = TestBed.inject(HttpTestingController);
 
-    const barcodeSpy = spyOn<any>(app, 'generateLinearBarcode').and.callFake(
+    const barcodeSpy = spyOn<any>(htmlService, 'generateLinearBarcode').and.callFake(
       (target: SVGElement, _value: string, format: string) => {
         target.setAttribute('data-format', format);
       },
@@ -240,10 +239,10 @@ describe('AppComponent', () => {
       '<html><head></head><body><wdoc-page><wdoc-barcode type="codabar" class="barcode" style="width:100px">789</wdoc-barcode></wdoc-page></body></html>';
     const zip = new JSZip();
 
-    const promise = app.processHtml(zip, html);
+    const promise = htmlService.processHtml(zip, html);
     const req = httpMock.expectOne('assets/wdoc-styles.css');
     req.flush('');
-    const result = await promise;
+    const result = (await promise).html;
     httpMock.verify();
 
     expect(barcodeSpy).toHaveBeenCalledWith(
@@ -263,11 +262,10 @@ describe('AppComponent', () => {
   });
 
   it('defaults invalid QR error correction values to medium', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance as any;
+    const htmlService = getHtmlService();
     const httpMock = TestBed.inject(HttpTestingController);
 
-    const qrSpy = spyOn<any>(app, 'generateQrCodeDataUrl').and.resolveTo(
+    const qrSpy = spyOn<any>(htmlService, 'generateQrCodeDataUrl').and.resolveTo(
       'data:qr',
     );
 
@@ -275,10 +273,10 @@ describe('AppComponent', () => {
       '<html><head></head><body><wdoc-page><wdoc-barcode errorcorrection="x">value</wdoc-barcode></wdoc-page></body></html>';
     const zip = new JSZip();
 
-    const promise = app.processHtml(zip, html);
+    const promise = htmlService.processHtml(zip, html);
     const req = httpMock.expectOne('assets/wdoc-styles.css');
     req.flush('');
-    const result = await promise;
+    const result = (await promise).html;
     httpMock.verify();
 
     expect(qrSpy).toHaveBeenCalledWith(
@@ -295,50 +293,49 @@ describe('AppComponent', () => {
   });
 
   it('maps supported linear barcode types to JsBarcode formats', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance as any;
+    const htmlService = getHtmlService();
 
-    expect(app['normalizeLinearBarcodeType']('EAN')).toBe('EAN');
-    expect(app['normalizeLinearBarcodeType']('upc')).toBe('UPC');
-    expect(app['normalizeLinearBarcodeType']('Code39')).toBe('CODE39');
-    expect(app['normalizeLinearBarcodeType']('itf14')).toBe('ITF14');
-    expect(app['normalizeLinearBarcodeType']('msi')).toBe('MSI');
-    expect(app['normalizeLinearBarcodeType']('pharmacode')).toBe('pharmacode');
+    expect(htmlService['normalizeLinearBarcodeType']('EAN')).toBe('EAN');
+    expect(htmlService['normalizeLinearBarcodeType']('upc')).toBe('UPC');
+    expect(htmlService['normalizeLinearBarcodeType']('Code39')).toBe('CODE39');
+    expect(htmlService['normalizeLinearBarcodeType']('itf14')).toBe('ITF14');
+    expect(htmlService['normalizeLinearBarcodeType']('msi')).toBe('MSI');
+    expect(htmlService['normalizeLinearBarcodeType']('pharmacode')).toBe(
+      'pharmacode',
+    );
   });
 
   it('falls back to the default title when no head title is present', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
+    const htmlService = getHtmlService();
     const httpMock = TestBed.inject(HttpTestingController);
 
     const html =
       '<html><head></head><body><main>No title here</main></body></html>';
     const zip = new JSZip();
 
-    const promise = app.processHtml(zip, html);
+    const promise = htmlService.processHtml(zip, html);
     const req = httpMock.expectOne('assets/wdoc-styles.css');
     req.flush('');
 
-    await promise;
+    const result = await promise;
     httpMock.verify();
 
-    expect(app.documentTitle).toBe('WDOC viewer');
+    expect(result.documentTitle).toBe('WDOC viewer');
   });
 
   it('paginates HTML without wdoc-page elements', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
+    const htmlService = getHtmlService();
     const httpMock = TestBed.inject(HttpTestingController);
 
     const html =
       '<html><head></head><body><h1>Doc</h1><p>Content</p></body></html>';
     const zip = new JSZip();
 
-    const promise = app.processHtml(zip, html);
+    const promise = htmlService.processHtml(zip, html);
     const req = httpMock.expectOne('assets/wdoc-styles.css');
     req.flush('');
 
-    const result = await promise;
+    const result = (await promise).html;
     httpMock.verify();
 
     const doc = new DOMParser().parseFromString(result, 'text/html');
@@ -347,18 +344,17 @@ describe('AppComponent', () => {
   });
 
   it('wraps paginated free-flow content inside wdoc-content', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
+    const htmlService = getHtmlService();
     const httpMock = TestBed.inject(HttpTestingController);
 
     const html = '<html><head></head><body><p>first</p><p>second</p></body></html>';
     const zip = new JSZip();
 
-    const promise = app.processHtml(zip, html);
+    const promise = htmlService.processHtml(zip, html);
     const req = httpMock.expectOne('assets/wdoc-styles.css');
     req.flush('');
 
-    const result = await promise;
+    const result = (await promise).html;
     httpMock.verify();
 
     const doc = new DOMParser().parseFromString(result, 'text/html');
@@ -375,8 +371,7 @@ describe('AppComponent', () => {
   });
 
   it('splits long documents across multiple pages when needed', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
+    const htmlService = getHtmlService();
     const httpMock = TestBed.inject(HttpTestingController);
 
     const longBody = Array.from({ length: 200 })
@@ -385,11 +380,11 @@ describe('AppComponent', () => {
     const html = `<html><head></head><body>${longBody}</body></html>`;
     const zip = new JSZip();
 
-    const promise = app.processHtml(zip, html);
+    const promise = htmlService.processHtml(zip, html);
     const req = httpMock.expectOne('assets/wdoc-styles.css');
     req.flush('');
 
-    const result = await promise;
+    const result = (await promise).html;
     httpMock.verify();
 
     const doc = new DOMParser().parseFromString(result, 'text/html');
@@ -398,8 +393,7 @@ describe('AppComponent', () => {
   });
 
   it('reserves header and footer height when paginating free-flow content', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
+    const htmlService = getHtmlService();
     const httpMock = TestBed.inject(HttpTestingController);
 
     const bodyBlocks = Array.from({ length: 4 })
@@ -421,11 +415,11 @@ describe('AppComponent', () => {
     console.log(html);
     const zip = new JSZip();
 
-    const promise = app.processHtml(zip, html);
+    const promise = htmlService.processHtml(zip, html);
     const req = httpMock.expectOne('assets/wdoc-styles.css');
     req.flush('');
 
-    const result = await promise;
+    const result = (await promise).html;
     httpMock.verify();
 
     const doc = new DOMParser().parseFromString(result, 'text/html');
@@ -434,8 +428,7 @@ describe('AppComponent', () => {
   });
 
   it('applies document CSS to pagination measurements', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
+    const htmlService = getHtmlService();
     const httpMock = TestBed.inject(HttpTestingController);
 
     const css =
@@ -448,11 +441,11 @@ describe('AppComponent', () => {
 
     const zip = new JSZip();
 
-    const promise = app.processHtml(zip, html);
+    const promise = htmlService.processHtml(zip, html);
     const req = httpMock.expectOne('assets/wdoc-styles.css');
     req.flush('');
 
-    const result = await promise;
+    const result = (await promise).html;
     httpMock.verify();
 
     const doc = new DOMParser().parseFromString(result, 'text/html');
@@ -461,8 +454,7 @@ describe('AppComponent', () => {
   });
 
   it('paginates free-flow content with headers and footers across pages', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
+    const htmlService = getHtmlService();
     const httpMock = TestBed.inject(HttpTestingController);
 
     const html = `
@@ -498,7 +490,7 @@ describe('AppComponent', () => {
       return throwError(() => new Error(`Unexpected URL ${url}`));
     });
 
-    const result = await app.processHtml(zip, html);
+    const result = await htmlService.processHtml(zip, html);
 
     const doc = new DOMParser().parseFromString(result, 'text/html');
     const pages = doc.querySelectorAll('wdoc-page');
@@ -526,12 +518,11 @@ describe('AppComponent', () => {
     );
 
     const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance as any;
+    const app = fixture.componentInstance;
     const httpMock = TestBed.inject(HttpTestingController);
+    const loader = TestBed.inject(WdocLoaderService);
 
-    const loadSpy = spyOn(app, 'loadWdocFromArrayBuffer').and.returnValue(
-      Promise.resolve()
-    );
+    const loadSpy = spyOn(loader, 'fetchAndLoadWdoc').and.resolveTo(null);
 
     app.ngOnInit();
 
@@ -541,7 +532,7 @@ describe('AppComponent', () => {
 
     await Promise.resolve();
 
-    expect(loadSpy).toHaveBeenCalledWith(buffer);
+    expect(loadSpy).toHaveBeenCalledWith('https://example.com/sample.zip');
 
     httpMock.verify();
     window.history.replaceState({}, '', originalUrl);
@@ -674,8 +665,7 @@ describe('AppComponent', () => {
   });
 
   it('should populate forms from wdoc-form folder', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
+    const htmlService = getHtmlService();
     const httpMock = TestBed.inject(HttpTestingController);
 
     const zip = new JSZip();
@@ -689,7 +679,7 @@ describe('AppComponent', () => {
     );
     folder.file('img.txt', 'data');
 
-    const processedPromise = app.processHtml(zip, html);
+    const processedPromise = htmlService.processHtml(zip, html);
     const req = httpMock.expectOne('assets/wdoc-styles.css');
     req.flush('');
     const processed = await processedPromise;
@@ -878,7 +868,7 @@ describe('AppComponent', () => {
 
     spyOn(window, 'confirm').and.returnValue(false);
     const httpSpy = spyOn(http, 'get').and.returnValue(of('body{margin:0;}'));
-    const promise = app.processHtml(zip, html);
+    const promise = htmlService.processHtml(zip, html);
     const processed = await promise;
 
     const doc = new DOMParser().parseFromString(processed, 'text/html');
@@ -908,7 +898,7 @@ describe('AppComponent', () => {
       '</body></html>';
 
     const zip = new JSZip();
-    const processed = await app.processHtml(zip, html);
+    const processed = await htmlService.processHtml(zip, html);
 
     const doc = new DOMParser().parseFromString(processed, 'text/html');
     const pages = Array.from(doc.querySelectorAll('wdoc-page'));
@@ -952,7 +942,7 @@ describe('AppComponent', () => {
         '</body></html>';
 
       const zip = new JSZip();
-      const processed = await app.processHtml(zip, html);
+      const processed = await htmlService.processHtml(zip, html);
 
       const doc = new DOMParser().parseFromString(processed, 'text/html');
       const container = doc.querySelector('wdoc-container');
@@ -1089,7 +1079,7 @@ describe('AppComponent', () => {
     spyOn(window, 'confirm').and.returnValue(true);
     spyOn(http, 'get').and.returnValue(of(''));
 
-    const processed = await app.processHtml(zip, html);
+    const processed = await htmlService.processHtml(zip, html);
     const doc = new DOMParser().parseFromString(processed, 'text/html');
     expect(doc.querySelectorAll('img').length).toBe(1);
   });
@@ -1145,7 +1135,7 @@ describe('AppComponent', () => {
     await app['loadWdocFromArrayBuffer'](buffer);
 
     expect(alertSpy).toHaveBeenCalledWith('index.html not found in the archive.');
-    expect(app.processHtml).not.toHaveBeenCalled();
+    expect(htmlService.processHtml).not.toHaveBeenCalled();
   });
 
   it('handles download errors while fetching remote archives', async () => {
@@ -1207,7 +1197,7 @@ describe('AppComponent', () => {
     expect(app.isNavOpen).toBeFalse();
     expect(fitSpy).toHaveBeenCalled();
 
-    const responsiveSpy = spyOn<any>(app, 'applyResponsiveLayout');
+    const responsiveSpy = spyOn<any>(htmlService, 'applyResponsiveLayout');
     app['onWindowResize'](800);
     expect(responsiveSpy).toHaveBeenCalledWith(800);
   }));
@@ -1222,7 +1212,7 @@ describe('AppComponent', () => {
     const html =
       '<html><head></head><body><wdoc-page></wdoc-page></body></html>';
     const zip = new JSZip();
-    await app.processHtml(zip, html);
+    await htmlService.processHtml(zip, html);
 
     expect(errorSpy).toHaveBeenCalled();
   });
@@ -1258,7 +1248,7 @@ describe('AppComponent', () => {
     );
     folder.file('asset.bin', 'file-data');
 
-    const mimeSpy = spyOn<any>(app, 'guessMimeType').and.returnValue('');
+    const mimeSpy = spyOn<any>(htmlService, 'guessMimeType').and.returnValue('');
     const urlSpy = spyOn(URL, 'createObjectURL').and.returnValue('blob:link');
 
     const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -1300,7 +1290,7 @@ describe('AppComponent', () => {
       '<html><head></head><body><img src="missing.png"/><wdoc-page></wdoc-page></body></html>';
     const zip = new JSZip();
 
-    await app.processHtml(zip, html);
+    await htmlService.processHtml(zip, html);
 
     expect(warnSpy).toHaveBeenCalledWith('File missing.png not found in zip.');
   });
