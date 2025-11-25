@@ -96,7 +96,7 @@ describe('WdocLoaderService', () => {
     attachments?.file('guide.pdf', 'pdf-data');
     const forms = zip.folder('wdoc-form');
     forms?.file('form-1.json', '{"name":"Test"}');
-    forms?.file('image.png', 'ignored');
+    forms?.file('image.png', 'image-bytes');
     zip.file('index.html', '<html><body>Doc</body></html>');
     const buffer = await zip.generateAsync({ type: 'arraybuffer' });
 
@@ -109,7 +109,7 @@ describe('WdocLoaderService', () => {
 
     expect(result?.attachments.map((f) => f.name)).toContain('guide.pdf');
     expect(result?.formAnswers.map((f) => f.name)).toContain('form-1.json');
-    expect(result?.formAnswers.some((f) => f.name === 'image.png')).toBeFalse();
+    expect(result?.formAnswers.map((f) => f.name)).toContain('image.png');
   });
 
   it('guesses common mime types and falls back for unknown', () => {

@@ -72,9 +72,7 @@ export class WdocLoaderService {
         defaultTitle,
       });
       const attachments = await this.extractFiles(zip, 'wdoc-attachment');
-      const formAnswers = await this.extractFiles(zip, 'wdoc-form', (name) =>
-        name.endsWith('.json'),
-      );
+      const formAnswers = await this.extractFiles(zip, 'wdoc-form');
       return {
         html: processed.html,
         documentTitle: processed.documentTitle,
