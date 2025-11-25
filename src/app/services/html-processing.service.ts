@@ -65,12 +65,6 @@ export class HtmlProcessingService {
       options.defaultTitle ?? 'WDOC viewer',
     );
 
-    const scripts = doc.querySelectorAll('script');
-    scripts.forEach((script) => script.remove());
-
-    const iframes = doc.querySelectorAll('iframe');
-    iframes.forEach((iframe) => iframe.remove());
-
     const images = doc.querySelectorAll('img');
     for (const img of Array.from(images)) {
       const src = img.getAttribute('src');
@@ -210,6 +204,7 @@ export class HtmlProcessingService {
         'link',
       ],
       ADD_ATTR: ['errorcorrection', 'format', 'href', 'rel', 'type'],
+      FORBID_TAGS: ['script', 'iframe'],
       WHOLE_DOCUMENT: true,
     });
   }
