@@ -17,6 +17,7 @@ import {
   WdocLoadResult,
   WdocLoaderService,
 } from '../services/wdoc-loader.service';
+import { DialogService } from '../services/dialog.service';
 
 @Component({
   selector: 'app-root',
@@ -55,7 +56,8 @@ export class AppComponent implements OnInit, OnDestroy {
     private sanitizer: DomSanitizer,
     private wdocLoaderService: WdocLoaderService,
     private htmlProcessingService: HtmlProcessingService,
-    private formManagerService: FormManagerService
+    private formManagerService: FormManagerService,
+    private dialogService: DialogService,
   ) {}
 
   ngOnInit(): void {
@@ -205,7 +207,7 @@ export class AppComponent implements OnInit, OnDestroy {
       this.isSupportedArchive(file.name)
     );
     if (!archiveFile) {
-      alert('Please drop a .wdoc or .zip file.');
+      this.dialogService.openAlert('Please drop a .wdoc or .zip file.', 'Invalid file');
       return;
     }
     this.onFileSelected(archiveFile);

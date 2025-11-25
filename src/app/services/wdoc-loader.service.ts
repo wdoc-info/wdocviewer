@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { lastValueFrom } from 'rxjs';
 import JSZip from 'jszip';
 import { HtmlProcessingService } from './html-processing.service';
+import { DialogService } from './dialog.service';
 
 export interface WdocLoadResult {
   html: string;
@@ -15,6 +16,7 @@ export class WdocLoaderService {
   constructor(
     private http: HttpClient,
     private htmlProcessingService: HtmlProcessingService,
+    private dialogService: DialogService,
   ) {}
 
   static async computeSha256(data: Uint8Array): Promise<string> {
@@ -32,7 +34,10 @@ export class WdocLoaderService {
       return await this.loadWdocFromArrayBuffer(arrayBuffer);
     } catch (error) {
       console.error(`Error downloading .wdoc/.zip file from ${url}:`, error);
-      alert('Error downloading .wdoc/.zip file from URL.');
+      await this.dialogService.openAlert(
+        'Error downloading .wdoc/.zip file from URL.',
+        'Download failed',
+      );
       return null;
     }
   }
@@ -49,7 +54,10 @@ export class WdocLoaderService {
       }
       const indexFile = this.findIndexFile(zip);
       if (!indexFile) {
-        alert('index.html not found in the archive.');
+        await this.dialogService.openAlert(
+          'index.html not found in the archive.',
+          'Missing entry',
+        );
         return null;
       }
       const html = await indexFile.async('text');
@@ -63,7 +71,10 @@ export class WdocLoaderService {
       };
     } catch (error) {
       console.error('Error processing zip file:', error);
-      alert('Error processing .wdoc file.');
+      await this.dialogService.openAlert(
+        'Error processing .wdoc file.',
+        'Processing error',
+      );
       return null;
     }
   }
@@ -100,12 +111,18 @@ export class WdocLoaderService {
       manifest = JSON.parse(manifestText);
     } catch (error) {
       console.error('Failed to parse content_manifest.json', error);
-      alert('The document content could not be verified and will not be opened.');
+      await this.dialogService.openAlert(
+        'The document content could not be verified and will not be opened.',
+        'Verification failed',
+      );
       return false;
     }
 
     if (manifest.algorithm !== 'sha256' || !Array.isArray(manifest.files)) {
-      alert('The document manifest uses an unsupported format and will not be opened.');
+      await this.dialogService.openAlert(
+        'The document manifest uses an unsupported format and will not be opened.',
+        'Unsupported manifest',
+      );
       return false;
     }
 
@@ -139,7 +156,10 @@ export class WdocLoaderService {
     }
 
     if (mismatches.length > 0) {
-      alert('The document content does not match its manifest and will not be opened.');
+      await this.dialogService.openAlert(
+        'The document content does not match its manifest and will not be opened.',
+        'Verification failed',
+      );
       return false;
     }
 
