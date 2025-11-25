@@ -1,5 +1,5 @@
 @if (htmlContent) {
-<div #contentContainer>
+<div #contentContainer (input)="onFormInteraction()" (change)="onFormInteraction()">
   <div [innerHTML]="htmlContent"></div>
 </div>
 }

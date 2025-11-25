@@ -41,12 +41,7 @@ describe('AppComponent', () => {
   it('should mark showSave when form input changes', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance as any;
-    const input = document.createElement('input');
-    const container = document.createElement('div');
-    container.appendChild(input);
-    app.viewer = { nativeElement: container } as any;
-    (app as any).attachFormListeners();
-    input.dispatchEvent(new Event('input'));
+    app.onFormInteraction();
     expect(app.showSave).toBeTrue();
   });
 
@@ -109,13 +104,11 @@ describe('AppComponent', () => {
 
     app.isNavOpen = false;
     app.toggleNav();
-    tick();
     expect(app.isNavOpen).toBeTrue();
     expect(fitSpy).toHaveBeenCalled();
 
     fitSpy.calls.reset();
     app.closeNav();
-    tick();
     expect(app.isNavOpen).toBeFalse();
     expect(fitSpy).toHaveBeenCalled();
   }));
@@ -135,6 +128,18 @@ describe('AppComponent', () => {
 
     expect((app as any).dragDepth).toBe(0);
     expect(app.showDropOverlay).toBeFalse();
+  });
+
+  it('detects when drag events contain files', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+
+    expect((app as any).containsFiles({} as unknown as DragEvent)).toBeFalse();
+    expect(
+      (app as any).containsFiles({
+        dataTransfer: { types: ['Files'] },
+      } as unknown as DragEvent)
+    ).toBeTrue();
   });
 
   it('calls saveForms when saving and resets showSave', async () => {
