@@ -25,7 +25,11 @@
         (save)="onSaveForms()"
         (zoomChange)="onZoomChange($event)"
       ></app-topbar>
-      <app-viewer [htmlContent]="htmlContent" [zoom]="zoom"></app-viewer>
+      <app-viewer
+        [htmlContent]="htmlContent"
+        [zoom]="zoom"
+        (formInteraction)="onFormInteraction()"
+      ></app-viewer>
     </div>
   </mat-sidenav-content>
 </mat-sidenav-container>

@@ -3,7 +3,11 @@ import {
   HostListener,
   OnDestroy,
   OnInit,
+  AfterViewInit,
   ViewChild,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  NgZone,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -31,8 +35,9 @@ import { DialogService } from '../services/dialog.service';
   ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AppComponent implements OnInit, OnDestroy {
+export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   htmlContent: SafeHtml | null = null;
   showSave = false;
   isNavOpen = false;
@@ -50,6 +55,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private afterPrintListener?: () => void;
   private wasNavOpenBeforePrint = false;
   private dragDepth = 0;
+  private resizeObserver?: ResizeObserver;
   @ViewChild(ViewerComponent) viewer!: ViewerComponent;
 
   constructor(
@@ -58,22 +64,28 @@ export class AppComponent implements OnInit, OnDestroy {
     private htmlProcessingService: HtmlProcessingService,
     private formManagerService: FormManagerService,
     private dialogService: DialogService,
+    private cdr: ChangeDetectorRef,
+    private zone: NgZone,
   ) {}
 
   ngOnInit(): void {
     if (typeof window !== 'undefined') {
       this.setupFileHandler();
       this.applyResponsiveLayout(window.innerWidth);
-      this.resizeListener = () => this.onWindowResize(window.innerWidth);
+      this.resizeListener = () =>
+        this.zone.run(() => this.onWindowResize(window.innerWidth));
       window.addEventListener('resize', this.resizeListener);
-      this.beforePrintListener = () => {
-        this.wasNavOpenBeforePrint = this.isNavOpen;
-        this.closeNav();
-      };
+      this.beforePrintListener = () =>
+        this.zone.run(() => {
+          this.wasNavOpenBeforePrint = this.isNavOpen;
+          this.closeNav();
+        });
       window.addEventListener('beforeprint', this.beforePrintListener);
-      this.afterPrintListener = () => {
-        this.isNavOpen = this.wasNavOpenBeforePrint;
-      };
+      this.afterPrintListener = () =>
+        this.zone.run(() => {
+          this.isNavOpen = this.wasNavOpenBeforePrint;
+          this.cdr.markForCheck();
+        });
       window.addEventListener('afterprint', this.afterPrintListener);
     }
     if (typeof window === 'undefined' || !window.location) {
@@ -96,6 +108,17 @@ export class AppComponent implements OnInit, OnDestroy {
     );
   }
 
+  ngAfterViewInit(): void {
+    const nativeViewer = this.viewer?.nativeElement;
+    if (typeof ResizeObserver !== 'undefined' && nativeViewer) {
+      this.resizeObserver = new ResizeObserver(() => {
+        this.zone.run(() => this.fitContentToViewport());
+      });
+      this.resizeObserver.observe(nativeViewer);
+    }
+    this.fitContentToViewport(true);
+  }
+
   ngOnDestroy(): void {
     if (typeof window !== 'undefined') {
       if (this.resizeListener) {
@@ -107,6 +130,10 @@ export class AppComponent implements OnInit, OnDestroy {
       if (this.afterPrintListener) {
         window.removeEventListener('afterprint', this.afterPrintListener);
       }
+    }
+    if (this.resizeObserver && this.viewer?.nativeElement) {
+      this.resizeObserver.unobserve(this.viewer.nativeElement);
+      this.resizeObserver.disconnect();
     }
     this.htmlProcessingService.cleanup();
   }
@@ -149,12 +176,12 @@ export class AppComponent implements OnInit, OnDestroy {
 
   toggleNav() {
     this.isNavOpen = !this.isNavOpen;
-    setTimeout(() => this.fitContentToViewport());
+    this.fitContentToViewport();
   }
 
   closeNav() {
     this.isNavOpen = false;
-    setTimeout(() => this.fitContentToViewport());
+    this.fitContentToViewport();
   }
 
   @HostListener('document:dragenter', ['$event'])
@@ -243,6 +270,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private onWindowResize(width: number) {
     this.applyResponsiveLayout(width);
     this.fitContentToViewport();
+    this.cdr.markForCheck();
   }
 
   private applyResponsiveLayout(width: number) {
@@ -251,7 +279,6 @@ export class AppComponent implements OnInit, OnDestroy {
     if (isDesktop !== this.isDesktop) {
       this.isDesktop = isDesktop;
       this.isNavOpen = isDesktop;
-      setTimeout(() => this.fitContentToViewport());
     }
   }
 
@@ -267,6 +294,7 @@ export class AppComponent implements OnInit, OnDestroy {
     }
     if (force || this.zoom > fitZoom) {
       this.zoom = fitZoom;
+      this.cdr.markForCheck();
     }
   }
 
@@ -301,21 +329,6 @@ export class AppComponent implements OnInit, OnDestroy {
     return lower.endsWith('.wdoc') || lower.endsWith('.zip');
   }
 
-  private attachFormListeners() {
-    if (!this.viewer) {
-      return;
-    }
-    const container = this.viewer.nativeElement;
-    if (!container) {
-      return;
-    }
-    const controls = container.querySelectorAll('input, textarea, select');
-    controls.forEach((el) => {
-      el.addEventListener('input', () => (this.showSave = true));
-      el.addEventListener('change', () => (this.showSave = true));
-    });
-  }
-
   private async handleLoadedWdoc(
     resultPromise: Promise<WdocLoadResult | null>
   ) {
@@ -330,9 +343,11 @@ export class AppComponent implements OnInit, OnDestroy {
     if (!this.isDesktop) {
       this.isNavOpen = false;
     }
-    setTimeout(() => {
-      this.attachFormListeners();
-      this.fitContentToViewport(true);
-    });
+    this.fitContentToViewport(true);
+    this.cdr.markForCheck();
+  }
+
+  onFormInteraction(): void {
+    this.showSave = true;
   }
 }

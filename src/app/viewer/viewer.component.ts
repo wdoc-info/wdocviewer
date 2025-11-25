@@ -6,6 +6,9 @@ import {
   ViewChild,
   OnChanges,
   SimpleChanges,
+  ChangeDetectionStrategy,
+  Output,
+  EventEmitter,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SafeHtml } from '@angular/platform-browser';
@@ -16,17 +19,24 @@ import { SafeHtml } from '@angular/platform-browser';
   imports: [CommonModule],
   templateUrl: './viewer.component.html',
   styleUrls: ['./viewer.component.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ViewerComponent implements AfterViewInit, OnChanges {
   @Input() htmlContent: SafeHtml | null = null;
   @Input() zoom = 100;
+  @Output() formInteraction = new EventEmitter<void>();
   @ViewChild('contentContainer') contentContainer?: ElementRef;
   @ViewChild('scrollContainer') scrollContainer?: ElementRef;
   private viewInitialized = false;
+  private pendingZoomRefresh = false;
 
   ngAfterViewInit() {
     this.viewInitialized = true;
     this.applyZoom();
+    if (this.pendingZoomRefresh) {
+      this.pendingZoomRefresh = false;
+      this.scheduleZoomRefresh();
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -34,12 +44,18 @@ export class ViewerComponent implements AfterViewInit, OnChanges {
       this.applyZoom();
     }
     if (changes['htmlContent'] && this.viewInitialized) {
-      setTimeout(() => this.applyZoom());
+      this.scheduleZoomRefresh();
+    } else if (changes['htmlContent']) {
+      this.pendingZoomRefresh = true;
     }
   }
 
   get nativeElement(): HTMLElement | undefined {
     return this.contentContainer?.nativeElement as HTMLElement;
+  }
+
+  onFormInteraction(): void {
+    this.formInteraction.emit();
   }
 
   private applyZoom() {
@@ -57,5 +73,9 @@ export class ViewerComponent implements AfterViewInit, OnChanges {
     pages.forEach((page) => {
       page.style.zoom = `${scale}`;
     });
+  }
+
+  private scheduleZoomRefresh(): void {
+    queueMicrotask(() => this.applyZoom());
   }
 }
