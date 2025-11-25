@@ -20,6 +20,7 @@ export class HtmlProcessingService {
   private paginationStyleEl?: HTMLStyleElement;
   private htmlPageSplitter?: HtmlPageSplitter;
   private paginationContainer?: HTMLElement;
+  private objectUrls: string[] = [];
   private readonly barcodeTypes = new Set([
     'codabar',
     'code128',
@@ -93,7 +94,7 @@ export class HtmlProcessingService {
       const fileInZip = zip.file(normalizedSrc);
       if (fileInZip) {
         try {
-          const base64Content = await fileInZip.async('base64');
+          const blobContent = await fileInZip.async('blob');
           const ext = normalizedSrc.split('.').pop()?.toLowerCase();
           let mime = 'image/png';
           if (ext === 'jpg' || ext === 'jpeg') {
@@ -103,8 +104,10 @@ export class HtmlProcessingService {
           } else if (ext === 'svg') {
             mime = 'image/svg+xml';
           }
-          const dataUrl = `data:${mime};base64,${base64Content}`;
-          img.setAttribute('src', dataUrl);
+          const typedBlob = new Blob([blobContent], { type: mime });
+          const objectUrl = URL.createObjectURL(typedBlob);
+          this.objectUrls.push(objectUrl);
+          img.setAttribute('src', objectUrl);
         } catch (error) {
           console.error(`Error reading image ${normalizedSrc} from zip:`, error);
         }
@@ -307,6 +310,8 @@ export class HtmlProcessingService {
       this.paginationContainer.remove();
     }
     this.htmlPageSplitter?.abort();
+    this.objectUrls.forEach((url) => URL.revokeObjectURL(url));
+    this.objectUrls = [];
   }
 
   private applyPaginationStyles(cssText: string) {
