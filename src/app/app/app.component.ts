@@ -55,11 +55,12 @@ export class AppComponent implements OnInit, OnDestroy {
     private sanitizer: DomSanitizer,
     private wdocLoaderService: WdocLoaderService,
     private htmlProcessingService: HtmlProcessingService,
-    private formManagerService: FormManagerService,
+    private formManagerService: FormManagerService
   ) {}
 
   ngOnInit(): void {
     if (typeof window !== 'undefined') {
+      this.setupFileHandler();
       this.applyResponsiveLayout(window.innerWidth);
       this.resizeListener = () => this.onWindowResize(window.innerWidth);
       window.addEventListener('resize', this.resizeListener);
@@ -89,7 +90,7 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     void this.handleLoadedWdoc(
-      this.wdocLoaderService.fetchAndLoadWdoc(trimmedUrl),
+      this.wdocLoaderService.fetchAndLoadWdoc(trimmedUrl)
     );
   }
 
@@ -116,12 +117,32 @@ export class AppComponent implements OnInit, OnDestroy {
         await this.handleLoadedWdoc(
           this.wdocLoaderService.loadWdocFromArrayBuffer(
             arrayBuffer,
-            this.defaultTitle,
-          ),
+            this.defaultTitle
+          )
         );
       }
     };
     reader.readAsArrayBuffer(file);
+  }
+
+  private setupFileHandler() {
+    const w = window as any;
+
+    if (!('launchQueue' in window)) {
+      // Not supported (non-Chromium or not installed)
+      return;
+    }
+
+    w.launchQueue.setConsumer(async (launchParams: any) => {
+      if (!launchParams.files || !launchParams.files.length) {
+        return;
+      }
+
+      for (const fileHandle of launchParams.files) {
+        const file = await fileHandle.getFile(); // File object
+        this.onFileSelected(file); // reuse your existing flow
+      }
+    });
   }
 
   toggleNav() {
@@ -181,7 +202,7 @@ export class AppComponent implements OnInit, OnDestroy {
       return;
     }
     const archiveFile = Array.from(files).find((file) =>
-      this.isSupportedArchive(file.name),
+      this.isSupportedArchive(file.name)
     );
     if (!archiveFile) {
       alert('Please drop a .wdoc or .zip file.');
@@ -204,7 +225,7 @@ export class AppComponent implements OnInit, OnDestroy {
     }
     await this.formManagerService.saveForms(
       this.viewer.nativeElement,
-      this.originalArrayBuffer,
+      this.originalArrayBuffer
     );
     this.showSave = false;
   }
@@ -293,7 +314,9 @@ export class AppComponent implements OnInit, OnDestroy {
     });
   }
 
-  private async handleLoadedWdoc(resultPromise: Promise<WdocLoadResult | null>) {
+  private async handleLoadedWdoc(
+    resultPromise: Promise<WdocLoadResult | null>
+  ) {
     const result = await resultPromise;
     if (!result) {
       return;
