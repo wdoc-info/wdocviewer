@@ -44,6 +44,52 @@
         </button>
       </div>
     }
+    @if (hasAttachmentData) {
+      <div class="attachments-wrapper" [class.open]="attachmentsMenuOpen">
+        <button
+          type="button"
+          class="attachments-button"
+          (click)="toggleAttachmentsMenu()"
+          aria-label="Show attachments"
+          aria-haspopup="true"
+          [attr.aria-expanded]="attachmentsMenuOpen"
+        >
+          Attachments
+        </button>
+        @if (attachmentsMenuOpen) {
+          <div class="attachments-dropdown" role="menu">
+            @if (attachments?.length) {
+              <div class="attachments-section">
+                <div class="section-title">Attachment(s)</div>
+                <ul>
+                  @for (file of attachments; track file.name) {
+                    <li>
+                      <button type="button" (click)="downloadFile(file)">
+                        {{ file.name }}
+                      </button>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+            @if (formAnswers?.length) {
+              <div class="attachments-section">
+                <div class="section-title">Form answers</div>
+                <ul>
+                  @for (file of formAnswers; track file.name) {
+                    <li>
+                      <button type="button" (click)="downloadFile(file)">
+                        {{ file.name }}
+                      </button>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
     <button
       class="topbar-save"
       type="button"

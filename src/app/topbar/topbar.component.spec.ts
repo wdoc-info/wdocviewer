@@ -77,4 +77,62 @@ describe('TopbarComponent', () => {
 
     expect(component.zoomChange.emit).toHaveBeenCalledWith(85);
   });
+
+  it('shows attachments button when data is available and lists sections', () => {
+    component.attachments = [{ name: 'guide.pdf', blob: new Blob() }];
+    component.formAnswers = [{ name: 'form-1.json', blob: new Blob() }];
+    fixture.detectChanges();
+
+    const btn: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '.attachments-button'
+    );
+    expect(btn).toBeTruthy();
+
+    btn.click();
+    fixture.detectChanges();
+
+    const dropdown: HTMLElement = fixture.nativeElement.querySelector(
+      '.attachments-dropdown'
+    );
+    expect(dropdown.textContent).toContain('Attachment(s)');
+    expect(dropdown.textContent).toContain('Form answers');
+    expect(dropdown.textContent).toContain('guide.pdf');
+    expect(dropdown.textContent).toContain('form-1.json');
+  });
+
+  it('does not open the attachments menu when there is no attachment data', () => {
+    component.attachments = [];
+    component.formAnswers = [];
+    fixture.detectChanges();
+
+    component.attachmentsMenuOpen = true;
+    component.toggleAttachmentsMenu();
+
+    expect(component.attachmentsMenuOpen).toBeFalse();
+  });
+
+  it('downloads files using blob URLs', () => {
+    component.attachments = [{ name: 'guide.pdf', blob: new Blob(['123']) }];
+    fixture.detectChanges();
+    const createUrlSpy = spyOn(URL, 'createObjectURL').and.returnValue('blob:123');
+    const revokeSpy = spyOn(URL, 'revokeObjectURL');
+    const realCreateElement = document.createElement.bind(document);
+    let anchor: HTMLAnchorElement | undefined;
+    const anchorSpy = spyOn(document, 'createElement').and.callFake((tag: string) => {
+      if (tag === 'a') {
+        anchor = realCreateElement(tag) as HTMLAnchorElement;
+        spyOn(anchor, 'click');
+        return anchor;
+      }
+      return realCreateElement(tag);
+    });
+
+    component.downloadFile(component.attachments[0]);
+
+    expect(createUrlSpy).toHaveBeenCalled();
+    expect(anchorSpy).toHaveBeenCalledWith('a');
+    expect(anchor!.download).toBe('guide.pdf');
+    expect(anchor!.click).toHaveBeenCalled();
+    expect(revokeSpy).toHaveBeenCalledWith('blob:123');
+  });
 });

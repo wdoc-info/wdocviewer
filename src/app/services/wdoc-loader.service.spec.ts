@@ -71,6 +71,8 @@ describe('WdocLoaderService', () => {
 
     expect(htmlProcessor.processHtml).toHaveBeenCalled();
     expect(result?.html).toContain('processed');
+    expect(result?.attachments.length).toBe(0);
+    expect(result?.formAnswers.length).toBe(0);
   });
 
   it('alerts when no index file is present', async () => {
@@ -86,5 +88,42 @@ describe('WdocLoaderService', () => {
       'index.html not found in the archive.',
       'Missing entry',
     );
+  });
+
+  it('collects attachment and form answer files from the archive', async () => {
+    const zip = new JSZip();
+    const attachments = zip.folder('wdoc-attachment');
+    attachments?.file('guide.pdf', 'pdf-data');
+    const forms = zip.folder('wdoc-form');
+    forms?.file('form-1.json', '{"name":"Test"}');
+    forms?.file('image.png', 'ignored');
+    zip.file('index.html', '<html><body>Doc</body></html>');
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' });
+
+    htmlProcessor.processHtml.and.resolveTo({
+      html: '<body>processed</body>',
+      documentTitle: 'Doc',
+    });
+
+    const result = await service.loadWdocFromArrayBuffer(buffer);
+
+    expect(result?.attachments.map((f) => f.name)).toContain('guide.pdf');
+    expect(result?.formAnswers.map((f) => f.name)).toContain('form-1.json');
+    expect(result?.formAnswers.some((f) => f.name === 'image.png')).toBeFalse();
+  });
+
+  it('guesses common mime types and falls back for unknown', () => {
+    const guessMime = (service as any).guessMimeType.bind(service);
+
+    expect(guessMime('file.pdf')).toBe('application/pdf');
+    expect(guessMime('file.jpeg')).toBe('image/jpeg');
+    expect(guessMime('file.jpg')).toBe('image/jpeg');
+    expect(guessMime('file.png')).toBe('image/png');
+    expect(guessMime('file.gif')).toBe('image/gif');
+    expect(guessMime('file.json')).toBe('application/json');
+    expect(guessMime('file.css')).toBe('text/css');
+    expect(guessMime('file.js')).toBe('application/javascript');
+    expect(guessMime('file.txt')).toBe('text/plain');
+    expect(guessMime('file.unknown')).toBeUndefined();
   });
 });

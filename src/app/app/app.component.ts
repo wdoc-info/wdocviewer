@@ -18,6 +18,7 @@ import { MatDrawerMode, MatSidenavModule } from '@angular/material/sidenav';
 import { FormManagerService } from '../services/form-manager.service';
 import { HtmlProcessingService } from '../services/html-processing.service';
 import {
+  LoadedFile,
   WdocLoadResult,
   WdocLoaderService,
 } from '../services/wdoc-loader.service';
@@ -67,6 +68,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private zone: NgZone,
   ) {}
+
+  attachments: LoadedFile[] = [];
+  formAnswers: LoadedFile[] = [];
 
   ngOnInit(): void {
     if (typeof window !== 'undefined') {
@@ -338,6 +342,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.originalArrayBuffer = result.originalArrayBuffer;
     this.documentTitle = result.documentTitle;
+    this.attachments = result.attachments;
+    this.formAnswers = result.formAnswers;
     this.showSave = false;
     this.htmlContent = this.sanitizer.bypassSecurityTrustHtml(result.html);
     if (!this.isDesktop) {
