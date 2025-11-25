@@ -236,9 +236,10 @@ describe('HtmlProcessingService', () => {
     expect(container?.querySelectorAll(':scope > wdoc-footer').length).toBe(0);
   });
 
-  it('converts relative images to data URLs and drops rejected external images', async () => {
+  it('converts relative images to object URLs and drops rejected external images', async () => {
     const service = getService();
     const http = TestBed.inject(HttpClient);
+    const createObjectUrlSpy = spyOn(URL, 'createObjectURL').and.returnValue('blob:pic');
 
     const html =
       '<html><head><style>.a{color:red;}</style><link rel="stylesheet" href="/styles/site.css"><link rel="stylesheet" href="styles/site.css"></head>' +
@@ -252,11 +253,32 @@ describe('HtmlProcessingService', () => {
     const processed = await service.processHtml(zip, html);
 
     const doc = parse(processed.html);
-    const firstImg = doc.querySelector('img[src^="data:image/png;base64,"]');
+    const firstImg = doc.querySelector('img[src^="blob:"]');
     expect(firstImg).toBeTruthy();
+    expect(createObjectUrlSpy).toHaveBeenCalled();
     expect(doc.querySelectorAll('img').length).toBe(1);
     expect(doc.querySelector('style')!.textContent).toContain('.b');
     expect(doc.querySelector('style')!.textContent).toContain('body{margin:0;}');
+    expect(httpSpy.calls.mostRecent().args[0]).toBe('assets/wdoc-styles.css');
+  });
+
+  it('releases object URLs during cleanup', async () => {
+    const service = getService();
+    const http = TestBed.inject(HttpClient);
+    const revokeSpy = spyOn(URL, 'revokeObjectURL');
+    const createSpy = spyOn(URL, 'createObjectURL').and.returnValue('blob:pic');
+    const httpSpy = spyOn(http, 'get').and.returnValue(of(''));
+
+    const html =
+      '<html><head></head><body><img src="pic.png"/><wdoc-page></wdoc-page></body></html>';
+    const zip = new JSZip();
+    zip.file('pic.png', 'image-bytes');
+
+    await service.processHtml(zip, html);
+    service.cleanup();
+
+    expect(createSpy).toHaveBeenCalled();
+    expect(revokeSpy).toHaveBeenCalledWith('blob:pic');
     expect(httpSpy.calls.mostRecent().args[0]).toBe('assets/wdoc-styles.css');
   });
 
