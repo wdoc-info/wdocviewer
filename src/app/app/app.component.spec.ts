@@ -12,7 +12,9 @@ describe('AppComponent', () => {
 
   beforeEach(async () => {
     formManager = jasmine.createSpyObj('FormManagerService', ['saveForms']);
-    wdocLoader = jasmine.createSpyObj('WdocLoaderService', ['fetchAndLoadWdoc']);
+    wdocLoader = jasmine.createSpyObj('WdocLoaderService', [
+      'fetchAndLoadWdoc',
+    ]);
     htmlProcessor = jasmine.createSpyObj('HtmlProcessingService', ['cleanup']);
 
     await TestBed.configureTestingModule({
@@ -148,7 +150,10 @@ describe('AppComponent', () => {
   it('handles dragenter/leave to toggle overlay depth', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance as any;
-    const eventBase = { preventDefault() {}, dataTransfer: { types: ['Files'] } } as DragEvent;
+    const eventBase = {
+      preventDefault() {},
+      dataTransfer: { types: ['Files'] },
+    } as unknown as DragEvent;
 
     app.onDragEnter(eventBase);
     expect((app as any).dragDepth).toBe(1);
