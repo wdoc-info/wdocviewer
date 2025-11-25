@@ -1,25 +1,85 @@
-# AI Contributor Guidelines
+# Agent Guide for WDOC Project
 
-This repository contains an Angular 19 application that renders `.wdoc` files. A `.wdoc` is a zip archive that must contain an `index.html` at the root. The goal is to replace PDF documents with this zipped HTML format to simplify templating, distribution, and readability by humans and LLMs.
+## 1. Project Overview
 
-## Development and Testing
+This project is an **Angular 20+** application serving as a viewer for **.wdoc** files.
+**What is a .wdoc?** It is a zipped archive containing:
 
-- Follow the project's `.editorconfig` (2‑space indentation; TypeScript uses single quotes).
-- Add tests for new features when practical.
-- Run the unit tests before committing:
+- `index.html` (The entry point).
+- `content_manifest.json` (Security verification).
+- Assets (Images, CSS) referenced relatively.
+- `wdoc-form/` (JSON data for form state persistence).
 
-  ```bash
-  npm test
-  ```
+The viewer is designed as an "anti-PDF," rendering HTML/CSS natively in the browser while maintaining pagination and portability.
 
-  The tests rely on a Chrome browser. If Chrome is not installed, set the `CHROME_BIN` environment variable appropriately.
+## 2. Tech Stack & Key Libraries
 
-## Feature Roadmap
+- **Framework:** Angular (Standalone Components used exclusively).
+- **Build System:** Angular CLI.
+- **Testing:**
+  - **Unit:** Jasmine/Karma (`*.spec.ts` files).
+- **Core Dependencies:**
+  - `jszip`: For reading/writing .wdoc archives.
+  - `dompurify`: For strict HTML sanitization.
+  - `jsbarcode` & `qrcode`: For rendering barcode tags dynamically.
+- **UI:** Angular Material (Sidenav, Dialogs).
 
-When implementing new functionality, keep in mind the planned roadmap:
+## 3. Architecture & Data Flow
 
-1. Support `<form>` elements in `.wdoc` files and store form results in a `wdoc-form` directory.
-2. Allow forms to accept file uploads (e.g., a visa request photo).
-3. Provide e‑signature capabilities both for the document and for submitted form data.
-4. Implement automatic page splitting for common HTML pages.
+### Loading a Document
 
+1. **Input:** File input or Drag-and-Drop.
+2. **Loader:** `WdocLoaderService` reads the ArrayBuffer.
+3. **Verification:** Validates `content_manifest.json` SHA-256 hashes before processing. **Fail if mismatch.**.
+4. **Processing:** `HtmlProcessingService` sanitizes HTML and handles asset injection.
+
+### Pagination Logic (Critical Complexity)
+
+The viewer does **client-side pagination**. It does not use standard CSS print media queries for the view mode.
+
+- **Splitter:** `HtmlPageSplitter` iterates through DOM nodes.
+- **Logic:** It fills a temporary container until `clientHeight` > `pageHeight` (default 1122px), then breaks.
+- **Custom Elements:** The output is wrapped in `<wdoc-container>` containing multiple `<wdoc-page>` elements.
+
+### Form Handling
+
+- Forms are **not** standard Angular Reactive Forms.
+- We map JSON files from `wdoc-form/` in the zip to HTML `<input>` elements by `name` attribute.
+- **Saving:** When saving, we read the DOM values and write new JSON files back into the Zip buffer.
+
+## 4. Coding Standards & Rules
+
+### DOM & Security
+
+- **Strict Sanitization:** Never bypass `DOMPurify` unless absolutely necessary. Scripts and Iframes are strictly forbidden.
+- **Asset Handling:**
+  - **Current:** Images are converted to URL.createObjectURL(blob).
+- **External Resources:** External images (`http://...`) are blocked by default. They require user confirmation via `ExternalImageDialogComponent`.
+
+### Angular Patterns
+
+- **Standalone:** All components must be `standalone: true`.
+- **Change Detection:** Prefer `OnPush` where possible
+- **Communication:** Use `Output()` emitters for child-to-parent communication (e.g., `Navbar` -> `App`).
+
+### Custom Elements
+
+The viewer injects specific custom elements. Do not remove these from sanitization allow-lists:
+
+- `wdoc-page`, `wdoc-container`, `wdoc-content`
+- `wdoc-header`, `wdoc-footer`
+- `wdoc-barcode` (rendered dynamically via service).
+
+## 5. Testing Guidelines
+
+### Unit Tests (Jasmine)
+
+- Use `fakeAsync` and `tick()` for timing-dependent logic (e.g., zoom debounce, layout calc).
+- Mock `HttpClient` and `MatDialog` using `Jasmine.createSpyObj`.
+- **Do not** test private methods directly; test the public side-effects.
+
+## 6. Common Pitfalls for Agents
+
+1. **Layout Thrashing:** The pagination logic causes reflows. When modifying `splitHtmlToPages.ts`, be extremely careful not to introduce infinite loops or excessive synchronous layout reads.
+2. **Zip Async:** `JSZip` operations are async. Always `await` them.
+3. **CSS Isolation:** The viewer styles (`src/assets/wdoc-styles.css`) are global. When adding UI components, ensure their styles do not bleed into the `wdoc-page` content.
