@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { lastValueFrom, firstValueFrom } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
+import DOMPurify from 'dompurify';
 import JSZip from 'jszip';
 import { HtmlPageSplitter } from '../pagination/html-pages/HtmlPageSplitter';
 import { FormManagerService } from './form-manager.service';
@@ -56,18 +57,13 @@ export class HtmlProcessingService {
     html: string,
     options: ProcessHtmlOptions = {},
   ): Promise<{ html: string; documentTitle: string }> {
+    const sanitizedHtml = this.sanitizeHtml(html);
     const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+    const doc = parser.parseFromString(sanitizedHtml, 'text/html');
     const documentTitle = this.updateDocumentTitle(
       doc,
       options.defaultTitle ?? 'WDOC viewer',
     );
-
-    const scripts = doc.querySelectorAll('script');
-    scripts.forEach((script) => script.remove());
-
-    const iframes = doc.querySelectorAll('iframe');
-    iframes.forEach((iframe) => iframe.remove());
 
     const images = doc.querySelectorAll('img');
     for (const img of Array.from(images)) {
@@ -187,6 +183,30 @@ export class HtmlProcessingService {
 
     await this.formManagerService.populateFormsFromZip(zip, doc);
     return { html: doc.documentElement.outerHTML, documentTitle };
+  }
+
+  private sanitizeHtml(html: string): string {
+    if (typeof window === 'undefined') {
+      return html;
+    }
+
+    return DOMPurify.sanitize(html, {
+      ADD_TAGS: [
+        'wdoc-barcode',
+        'wdoc-content',
+        'wdoc-container',
+        'wdoc-date',
+        'wdoc-footer',
+        'wdoc-header',
+        'wdoc-nbpages',
+        'wdoc-page',
+        'wdoc-pagenum',
+        'link',
+      ],
+      ADD_ATTR: ['errorcorrection', 'format', 'href', 'rel', 'type'],
+      FORBID_TAGS: ['script', 'iframe'],
+      WHOLE_DOCUMENT: true,
+    });
   }
 
   private isExternalImage(src: string): boolean {
