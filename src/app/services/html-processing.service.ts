@@ -1,12 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { lastValueFrom } from 'rxjs';
+import { lastValueFrom, firstValueFrom } from 'rxjs';
+import { MatDialog } from '@angular/material/dialog';
 import JSZip from 'jszip';
 import { HtmlPageSplitter } from '../pagination/html-pages/HtmlPageSplitter';
 import { FormManagerService } from './form-manager.service';
 import QRCode from 'qrcode';
 import { QRCodeToDataURLOptions } from 'qrcode';
 import JsBarcode from 'jsbarcode';
+import { ExternalImageDialogComponent } from './external-image-dialog.component';
 
 interface ProcessHtmlOptions {
   defaultTitle?: string;
@@ -36,6 +38,7 @@ export class HtmlProcessingService {
   constructor(
     private http: HttpClient,
     private formManagerService: FormManagerService,
+    private dialog: MatDialog,
   ) {
     if (typeof document !== 'undefined') {
       this.paginationContainer = this.createPaginationContainer();
@@ -73,34 +76,44 @@ export class HtmlProcessingService {
         continue;
       }
 
-      if (src.startsWith('http') || src.startsWith('//') || src.startsWith('data:')) {
-        const confirmLoad = window.confirm(`Do you want to load external image: ${src}?`);
-        if (!confirmLoad) {
-          img.remove();
-        }
-      } else {
-        const normalizedSrc = src.startsWith('/') ? src.slice(1) : src;
-        const fileInZip = zip.file(normalizedSrc);
-        if (fileInZip) {
-          try {
-            const base64Content = await fileInZip.async('base64');
-            const ext = normalizedSrc.split('.').pop()?.toLowerCase();
-            let mime = 'image/png';
-            if (ext === 'jpg' || ext === 'jpeg') {
-              mime = 'image/jpeg';
-            } else if (ext === 'gif') {
-              mime = 'image/gif';
-            } else if (ext === 'svg') {
-              mime = 'image/svg+xml';
-            }
-            const dataUrl = `data:${mime};base64,${base64Content}`;
-            img.setAttribute('src', dataUrl);
-          } catch (error) {
-            console.error(`Error reading image ${normalizedSrc} from zip:`, error);
+      if (this.isExternalImage(src)) {
+        const originalSrcset = img.getAttribute('srcset');
+        img.removeAttribute('src');
+        img.removeAttribute('srcset');
+
+        const confirmLoad = await this.confirmExternalImageLoad(src);
+        if (confirmLoad) {
+          img.setAttribute('src', src);
+          if (originalSrcset) {
+            img.setAttribute('srcset', originalSrcset);
           }
         } else {
-          console.warn(`File ${normalizedSrc} not found in zip.`);
+          img.remove();
         }
+        continue;
+      }
+
+      const normalizedSrc = src.startsWith('/') ? src.slice(1) : src;
+      const fileInZip = zip.file(normalizedSrc);
+      if (fileInZip) {
+        try {
+          const base64Content = await fileInZip.async('base64');
+          const ext = normalizedSrc.split('.').pop()?.toLowerCase();
+          let mime = 'image/png';
+          if (ext === 'jpg' || ext === 'jpeg') {
+            mime = 'image/jpeg';
+          } else if (ext === 'gif') {
+            mime = 'image/gif';
+          } else if (ext === 'svg') {
+            mime = 'image/svg+xml';
+          }
+          const dataUrl = `data:${mime};base64,${base64Content}`;
+          img.setAttribute('src', dataUrl);
+        } catch (error) {
+          console.error(`Error reading image ${normalizedSrc} from zip:`, error);
+        }
+      } else {
+        console.warn(`File ${normalizedSrc} not found in zip.`);
       }
     }
 
@@ -174,6 +187,23 @@ export class HtmlProcessingService {
 
     await this.formManagerService.populateFormsFromZip(zip, doc);
     return { html: doc.documentElement.outerHTML, documentTitle };
+  }
+
+  private isExternalImage(src: string): boolean {
+    return src.startsWith('http') || src.startsWith('//') || src.startsWith('data:');
+  }
+
+  private async confirmExternalImageLoad(src: string): Promise<boolean> {
+    const dialogRef = this.dialog.open(ExternalImageDialogComponent, {
+      data: { src },
+      restoreFocus: false,
+    });
+
+    try {
+      return await firstValueFrom(dialogRef.afterClosed());
+    } catch {
+      return false;
+    }
   }
 
   paginateContent = async (doc: Document, reservedHeight = 0): Promise<void> => {

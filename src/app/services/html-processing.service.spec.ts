@@ -7,15 +7,21 @@ import {
 import JSZip from 'jszip';
 import { of, throwError } from 'rxjs';
 import { HtmlProcessingService } from './html-processing.service';
+import { MatDialog } from '@angular/material/dialog';
 
 const parse = (html: string) => new DOMParser().parseFromString(html, 'text/html');
 
 describe('HtmlProcessingService', () => {
   const getService = () => TestBed.inject(HtmlProcessingService) as any;
+  let dialogMock: jasmine.SpyObj<MatDialog>;
 
   beforeEach(() => {
+    dialogMock = jasmine.createSpyObj<MatDialog>('MatDialog', ['open']);
+    dialogMock.open.and.returnValue({ afterClosed: () => of(true) } as any);
+
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
+      providers: [{ provide: MatDialog, useValue: dialogMock }],
     });
   });
 
@@ -217,7 +223,7 @@ describe('HtmlProcessingService', () => {
     zip.file('styles/site.css', '.b{color:blue;}');
     zip.file('pic.png', 'image-bytes');
 
-    spyOn(window, 'confirm').and.returnValue(false);
+    dialogMock.open.and.returnValue({ afterClosed: () => of(false) } as any);
     const httpSpy = spyOn(http, 'get').and.returnValue(of('body{margin:0;}'));
     const processed = await service.processHtml(zip, html);
 
@@ -228,6 +234,28 @@ describe('HtmlProcessingService', () => {
     expect(doc.querySelector('style')!.textContent).toContain('.b');
     expect(doc.querySelector('style')!.textContent).toContain('body{margin:0;}');
     expect(httpSpy.calls.mostRecent().args[0]).toBe('assets/wdoc-styles.css');
+  });
+
+  it('restores external image attributes only after confirmation', async () => {
+    const service = getService();
+    const http = TestBed.inject(HttpClient);
+
+    const html =
+      '<html><head></head><body>' +
+      '<img src="https://example.com/ext.png" srcset="https://example.com/ext@2x.png 2x"/>' +
+      '<wdoc-page></wdoc-page>' +
+      '</body></html>';
+    const zip = new JSZip();
+
+    dialogMock.open.and.returnValue({ afterClosed: () => of(true) } as any);
+
+    const httpSpy = spyOn(http, 'get').and.returnValue(of(''));
+    const doc = parse((await service.processHtml(zip, html)).html);
+    expect(httpSpy.calls.mostRecent().args[0]).toBe('assets/wdoc-styles.css');
+
+    const img = doc.querySelector('img');
+    expect(img?.getAttribute('src')).toBe('https://example.com/ext.png');
+    expect(img?.getAttribute('srcset')).toBe('https://example.com/ext@2x.png 2x');
   });
 
   it('falls back to QR codes and default error correction when type is missing', async () => {

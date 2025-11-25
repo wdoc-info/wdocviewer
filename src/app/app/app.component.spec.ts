@@ -4,11 +4,13 @@ import { AppComponent } from './app.component';
 import { FormManagerService } from '../services/form-manager.service';
 import { HtmlProcessingService } from '../services/html-processing.service';
 import { WdocLoaderService } from '../services/wdoc-loader.service';
+import { DialogService } from '../services/dialog.service';
 
 describe('AppComponent', () => {
   let formManager: jasmine.SpyObj<FormManagerService>;
   let wdocLoader: jasmine.SpyObj<WdocLoaderService>;
   let htmlProcessor: jasmine.SpyObj<HtmlProcessingService>;
+  let dialogService: jasmine.SpyObj<DialogService>;
 
   beforeEach(async () => {
     formManager = jasmine.createSpyObj('FormManagerService', ['saveForms']);
@@ -16,6 +18,8 @@ describe('AppComponent', () => {
       'fetchAndLoadWdoc',
     ]);
     htmlProcessor = jasmine.createSpyObj('HtmlProcessingService', ['cleanup']);
+    dialogService = jasmine.createSpyObj('DialogService', ['openAlert']);
+    dialogService.openAlert.and.resolveTo();
 
     await TestBed.configureTestingModule({
       imports: [HttpClientTestingModule, AppComponent],
@@ -23,6 +27,7 @@ describe('AppComponent', () => {
         { provide: FormManagerService, useValue: formManager },
         { provide: WdocLoaderService, useValue: wdocLoader },
         { provide: HtmlProcessingService, useValue: htmlProcessor },
+        { provide: DialogService, useValue: dialogService },
       ],
     }).compileComponents();
   });
