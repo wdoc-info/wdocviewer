@@ -73,34 +73,44 @@ export class HtmlProcessingService {
         continue;
       }
 
-      if (src.startsWith('http') || src.startsWith('//') || src.startsWith('data:')) {
+      if (this.isExternalImage(src)) {
+        const originalSrcset = img.getAttribute('srcset');
+        img.removeAttribute('src');
+        img.removeAttribute('srcset');
+
         const confirmLoad = window.confirm(`Do you want to load external image: ${src}?`);
-        if (!confirmLoad) {
-          img.remove();
-        }
-      } else {
-        const normalizedSrc = src.startsWith('/') ? src.slice(1) : src;
-        const fileInZip = zip.file(normalizedSrc);
-        if (fileInZip) {
-          try {
-            const base64Content = await fileInZip.async('base64');
-            const ext = normalizedSrc.split('.').pop()?.toLowerCase();
-            let mime = 'image/png';
-            if (ext === 'jpg' || ext === 'jpeg') {
-              mime = 'image/jpeg';
-            } else if (ext === 'gif') {
-              mime = 'image/gif';
-            } else if (ext === 'svg') {
-              mime = 'image/svg+xml';
-            }
-            const dataUrl = `data:${mime};base64,${base64Content}`;
-            img.setAttribute('src', dataUrl);
-          } catch (error) {
-            console.error(`Error reading image ${normalizedSrc} from zip:`, error);
+        if (confirmLoad) {
+          img.setAttribute('src', src);
+          if (originalSrcset) {
+            img.setAttribute('srcset', originalSrcset);
           }
         } else {
-          console.warn(`File ${normalizedSrc} not found in zip.`);
+          img.remove();
         }
+        continue;
+      }
+
+      const normalizedSrc = src.startsWith('/') ? src.slice(1) : src;
+      const fileInZip = zip.file(normalizedSrc);
+      if (fileInZip) {
+        try {
+          const base64Content = await fileInZip.async('base64');
+          const ext = normalizedSrc.split('.').pop()?.toLowerCase();
+          let mime = 'image/png';
+          if (ext === 'jpg' || ext === 'jpeg') {
+            mime = 'image/jpeg';
+          } else if (ext === 'gif') {
+            mime = 'image/gif';
+          } else if (ext === 'svg') {
+            mime = 'image/svg+xml';
+          }
+          const dataUrl = `data:${mime};base64,${base64Content}`;
+          img.setAttribute('src', dataUrl);
+        } catch (error) {
+          console.error(`Error reading image ${normalizedSrc} from zip:`, error);
+        }
+      } else {
+        console.warn(`File ${normalizedSrc} not found in zip.`);
       }
     }
 
@@ -174,6 +184,10 @@ export class HtmlProcessingService {
 
     await this.formManagerService.populateFormsFromZip(zip, doc);
     return { html: doc.documentElement.outerHTML, documentTitle };
+  }
+
+  private isExternalImage(src: string): boolean {
+    return src.startsWith('http') || src.startsWith('//') || src.startsWith('data:');
   }
 
   paginateContent = async (doc: Document, reservedHeight = 0): Promise<void> => {

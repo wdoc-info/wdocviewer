@@ -230,6 +230,29 @@ describe('HtmlProcessingService', () => {
     expect(httpSpy.calls.mostRecent().args[0]).toBe('assets/wdoc-styles.css');
   });
 
+  it('restores external image attributes only after confirmation', async () => {
+    const service = getService();
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const html =
+      '<html><head></head><body>' +
+      '<img src="https://example.com/ext.png" srcset="https://example.com/ext@2x.png 2x"/>' +
+      '<wdoc-page></wdoc-page>' +
+      '</body></html>';
+    const zip = new JSZip();
+
+    spyOn(window, 'confirm').and.returnValue(true);
+
+    const promise = service.processHtml(zip, html);
+    httpMock.expectOne('assets/wdoc-styles.css').flush('');
+    const doc = parse((await promise).html);
+    httpMock.verify();
+
+    const img = doc.querySelector('img');
+    expect(img?.getAttribute('src')).toBe('https://example.com/ext.png');
+    expect(img?.getAttribute('srcset')).toBe('https://example.com/ext@2x.png 2x');
+  });
+
   it('falls back to QR codes and default error correction when type is missing', async () => {
     const service = getService();
     const httpMock = TestBed.inject(HttpTestingController);
