@@ -7,15 +7,21 @@ import {
 import JSZip from 'jszip';
 import { of, throwError } from 'rxjs';
 import { HtmlProcessingService } from './html-processing.service';
+import { MatDialog } from '@angular/material/dialog';
 
 const parse = (html: string) => new DOMParser().parseFromString(html, 'text/html');
 
 describe('HtmlProcessingService', () => {
   const getService = () => TestBed.inject(HtmlProcessingService) as any;
+  let dialogMock: jasmine.SpyObj<MatDialog>;
 
   beforeEach(() => {
+    dialogMock = jasmine.createSpyObj<MatDialog>('MatDialog', ['open']);
+    dialogMock.open.and.returnValue({ afterClosed: () => of(true) } as any);
+
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
+      providers: [{ provide: MatDialog, useValue: dialogMock }],
     });
   });
 
@@ -217,7 +223,7 @@ describe('HtmlProcessingService', () => {
     zip.file('styles/site.css', '.b{color:blue;}');
     zip.file('pic.png', 'image-bytes');
 
-    spyOn(window, 'confirm').and.returnValue(false);
+    dialogMock.open.and.returnValue({ afterClosed: () => of(false) } as any);
     const httpSpy = spyOn(http, 'get').and.returnValue(of('body{margin:0;}'));
     const processed = await service.processHtml(zip, html);
 
@@ -232,7 +238,7 @@ describe('HtmlProcessingService', () => {
 
   it('restores external image attributes only after confirmation', async () => {
     const service = getService();
-    const httpMock = TestBed.inject(HttpTestingController);
+    const http = TestBed.inject(HttpClient);
 
     const html =
       '<html><head></head><body>' +
@@ -241,12 +247,11 @@ describe('HtmlProcessingService', () => {
       '</body></html>';
     const zip = new JSZip();
 
-    spyOn(window, 'confirm').and.returnValue(true);
+    dialogMock.open.and.returnValue({ afterClosed: () => of(true) } as any);
 
-    const promise = service.processHtml(zip, html);
-    httpMock.expectOne('assets/wdoc-styles.css').flush('');
-    const doc = parse((await promise).html);
-    httpMock.verify();
+    const httpSpy = spyOn(http, 'get').and.returnValue(of(''));
+    const doc = parse((await service.processHtml(zip, html)).html);
+    expect(httpSpy.calls.mostRecent().args[0]).toBe('assets/wdoc-styles.css');
 
     const img = doc.querySelector('img');
     expect(img?.getAttribute('src')).toBe('https://example.com/ext.png');
