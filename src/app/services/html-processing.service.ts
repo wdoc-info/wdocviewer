@@ -7,6 +7,7 @@ import { FormManagerService } from './form-manager.service';
 import QRCode from 'qrcode';
 import { QRCodeToDataURLOptions } from 'qrcode';
 import JsBarcode from 'jsbarcode';
+import { DialogService } from './dialog.service';
 
 interface ProcessHtmlOptions {
   defaultTitle?: string;
@@ -36,6 +37,7 @@ export class HtmlProcessingService {
   constructor(
     private http: HttpClient,
     private formManagerService: FormManagerService,
+    private dialogService: DialogService,
   ) {
     if (typeof document !== 'undefined') {
       this.paginationContainer = this.createPaginationContainer();
@@ -74,7 +76,9 @@ export class HtmlProcessingService {
       }
 
       if (src.startsWith('http') || src.startsWith('//') || src.startsWith('data:')) {
-        const confirmLoad = window.confirm(`Do you want to load external image: ${src}?`);
+        const confirmLoad = await this.dialogService.confirm(
+          `Do you want to load external image: ${src}?`,
+        );
         if (!confirmLoad) {
           img.remove();
         }

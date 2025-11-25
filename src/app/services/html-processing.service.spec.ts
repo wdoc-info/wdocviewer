@@ -7,15 +7,21 @@ import {
 import JSZip from 'jszip';
 import { of, throwError } from 'rxjs';
 import { HtmlProcessingService } from './html-processing.service';
+import { DialogService } from './dialog.service';
 
 const parse = (html: string) => new DOMParser().parseFromString(html, 'text/html');
 
 describe('HtmlProcessingService', () => {
   const getService = () => TestBed.inject(HtmlProcessingService) as any;
+  let dialogService: jasmine.SpyObj<DialogService>;
 
   beforeEach(() => {
+    dialogService = jasmine.createSpyObj('DialogService', ['alert', 'confirm']);
+    dialogService.alert.and.resolveTo();
+    dialogService.confirm.and.resolveTo(true);
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
+      providers: [{ provide: DialogService, useValue: dialogService }],
     });
   });
 
@@ -217,7 +223,7 @@ describe('HtmlProcessingService', () => {
     zip.file('styles/site.css', '.b{color:blue;}');
     zip.file('pic.png', 'image-bytes');
 
-    spyOn(window, 'confirm').and.returnValue(false);
+    dialogService.confirm.and.resolveTo(false);
     const httpSpy = spyOn(http, 'get').and.returnValue(of('body{margin:0;}'));
     const processed = await service.processHtml(zip, html);
 

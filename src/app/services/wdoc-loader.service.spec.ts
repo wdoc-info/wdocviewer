@@ -6,19 +6,30 @@ import {
 import JSZip from 'jszip';
 import { HtmlProcessingService } from './html-processing.service';
 import { WdocLoaderService } from './wdoc-loader.service';
+import { DialogService } from './dialog.service';
 
 describe('WdocLoaderService', () => {
   let service: WdocLoaderService;
   let httpMock: HttpTestingController;
   let htmlProcessor: jasmine.SpyObj<HtmlProcessingService>;
+  let dialogService: jasmine.SpyObj<DialogService>;
 
   beforeEach(() => {
+    dialogService = jasmine.createSpyObj('DialogService', [
+      'alert',
+      'confirm',
+    ]);
+    dialogService.alert.and.resolveTo();
+    dialogService.confirm.and.resolveTo(true);
     htmlProcessor = jasmine.createSpyObj('HtmlProcessingService', [
       'processHtml',
     ]);
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [{ provide: HtmlProcessingService, useValue: htmlProcessor }],
+      providers: [
+        { provide: HtmlProcessingService, useValue: htmlProcessor },
+        { provide: DialogService, useValue: dialogService },
+      ],
     });
     service = TestBed.inject(WdocLoaderService);
     httpMock = TestBed.inject(HttpTestingController);
@@ -44,10 +55,9 @@ describe('WdocLoaderService', () => {
       })
     );
 
-    const alertSpy = spyOn(window, 'alert');
     const ok = await (service as any).verifyContentManifest(zip);
     expect(ok).toBeFalse();
-    expect(alertSpy).toHaveBeenCalled();
+    expect(dialogService.alert).toHaveBeenCalled();
   });
 
   it('loads nested index files within the zip archive', async () => {
@@ -70,13 +80,12 @@ describe('WdocLoaderService', () => {
     zip.file('readme.txt', 'info');
     const buffer = await zip.generateAsync({ type: 'arraybuffer' });
     htmlProcessor.processHtml.and.resolveTo({ html: '', documentTitle: '' });
-    const alertSpy = spyOn(window, 'alert');
 
     const result = await service.loadWdocFromArrayBuffer(buffer);
 
     expect(result).toBeNull();
-    expect(alertSpy).toHaveBeenCalledWith(
-      'index.html not found in the archive.'
+    expect(dialogService.alert).toHaveBeenCalledWith(
+      'index.html not found in the archive.',
     );
   });
 });

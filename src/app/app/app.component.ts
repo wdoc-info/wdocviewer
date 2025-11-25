@@ -11,7 +11,9 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { ViewerComponent } from '../viewer/viewer.component';
 import { TopbarComponent } from '../topbar/topbar.component';
 import { MatDrawerMode, MatSidenavModule } from '@angular/material/sidenav';
+import { MatDialogModule } from '@angular/material/dialog';
 import { FormManagerService } from '../services/form-manager.service';
+import { DialogService } from '../services/dialog.service';
 import { HtmlProcessingService } from '../services/html-processing.service';
 import {
   WdocLoadResult,
@@ -27,6 +29,7 @@ import {
     ViewerComponent,
     TopbarComponent,
     MatSidenavModule,
+    MatDialogModule,
   ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
@@ -55,7 +58,8 @@ export class AppComponent implements OnInit, OnDestroy {
     private sanitizer: DomSanitizer,
     private wdocLoaderService: WdocLoaderService,
     private htmlProcessingService: HtmlProcessingService,
-    private formManagerService: FormManagerService
+    private formManagerService: FormManagerService,
+    private dialogService: DialogService,
   ) {}
 
   ngOnInit(): void {
@@ -190,7 +194,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   @HostListener('document:drop', ['$event'])
-  onDrop(event: DragEvent) {
+  async onDrop(event: DragEvent) {
     if (!this.containsFiles(event)) {
       return;
     }
@@ -205,7 +209,7 @@ export class AppComponent implements OnInit, OnDestroy {
       this.isSupportedArchive(file.name)
     );
     if (!archiveFile) {
-      alert('Please drop a .wdoc or .zip file.');
+      await this.dialogService.alert('Please drop a .wdoc or .zip file.');
       return;
     }
     this.onFileSelected(archiveFile);
