@@ -71,6 +71,8 @@ describe('WdocLoaderService', () => {
 
     expect(htmlProcessor.processHtml).toHaveBeenCalled();
     expect(result?.html).toContain('processed');
+    expect(result?.attachments.length).toBe(0);
+    expect(result?.formAnswers.length).toBe(0);
   });
 
   it('alerts when no index file is present', async () => {
@@ -86,5 +88,65 @@ describe('WdocLoaderService', () => {
       'index.html not found in the archive.',
       'Missing entry',
     );
+  });
+
+  it('collects attachment and form answer files from the archive', async () => {
+    const zip = new JSZip();
+    const attachments = zip.folder('wdoc-attachment');
+    attachments?.file('guide.pdf', 'pdf-data');
+    const forms = zip.folder('wdoc-form');
+    forms?.file('form-1.json', '{"name":"Test"}');
+    forms?.file('image.png', 'image-bytes');
+    zip.file('index.html', '<html><body>Doc</body></html>');
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' });
+
+    htmlProcessor.processHtml.and.resolveTo({
+      html: '<body>processed</body>',
+      documentTitle: 'Doc',
+    });
+
+    const result = await service.loadWdocFromArrayBuffer(buffer);
+
+    expect(result?.attachments.map((f) => f.name)).toContain('guide.pdf');
+    expect(result?.formAnswers.map((f) => f.name)).toContain('form-1.json');
+    expect(result?.formAnswers.map((f) => f.name)).toContain('image.png');
+  });
+
+  it('ignores OS metadata files in attachment and form folders', async () => {
+    const zip = new JSZip();
+    const attachments = zip.folder('wdoc-attachment');
+    attachments?.file('guide.pdf', 'pdf-data');
+    attachments?.file('.DS_Store', 'mac');
+    attachments?.file('__MACOSX/._guide.pdf', 'macos');
+    const forms = zip.folder('wdoc-form');
+    forms?.file('Thumbs.db', 'windows');
+    forms?.file('answer.json', '{"ok":true}');
+    zip.file('index.html', '<html><body>Doc</body></html>');
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' });
+
+    htmlProcessor.processHtml.and.resolveTo({
+      html: '<body>processed</body>',
+      documentTitle: 'Doc',
+    });
+
+    const result = await service.loadWdocFromArrayBuffer(buffer);
+
+    expect(result?.attachments.map((f) => f.name)).toEqual(['guide.pdf']);
+    expect(result?.formAnswers.map((f) => f.name)).toEqual(['answer.json']);
+  });
+
+  it('guesses common mime types and falls back for unknown', () => {
+    const guessMime = (service as any).guessMimeType.bind(service);
+
+    expect(guessMime('file.pdf')).toBe('application/pdf');
+    expect(guessMime('file.jpeg')).toBe('image/jpeg');
+    expect(guessMime('file.jpg')).toBe('image/jpeg');
+    expect(guessMime('file.png')).toBe('image/png');
+    expect(guessMime('file.gif')).toBe('image/gif');
+    expect(guessMime('file.json')).toBe('application/json');
+    expect(guessMime('file.css')).toBe('text/css');
+    expect(guessMime('file.js')).toBe('application/javascript');
+    expect(guessMime('file.txt')).toBe('text/plain');
+    expect(guessMime('file.unknown')).toBeUndefined();
   });
 });

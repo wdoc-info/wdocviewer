@@ -9,6 +9,13 @@ export interface WdocLoadResult {
   html: string;
   documentTitle: string;
   originalArrayBuffer: ArrayBuffer;
+  attachments: LoadedFile[];
+  formAnswers: LoadedFile[];
+}
+
+export interface LoadedFile {
+  name: string;
+  blob: Blob;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -64,10 +71,14 @@ export class WdocLoaderService {
       const processed = await this.htmlProcessingService.processHtml(zip, html, {
         defaultTitle,
       });
+      const attachments = await this.extractFiles(zip, 'wdoc-attachment');
+      const formAnswers = await this.extractFiles(zip, 'wdoc-form');
       return {
         html: processed.html,
         documentTitle: processed.documentTitle,
         originalArrayBuffer: arrayBuffer,
+        attachments,
+        formAnswers,
       };
     } catch (error) {
       console.error('Error processing zip file:', error);
@@ -164,5 +175,76 @@ export class WdocLoaderService {
     }
 
     return true;
+  }
+
+  private async extractFiles(
+    zip: JSZip,
+    folderName: string,
+    predicate: (name: string) => boolean = () => true,
+  ): Promise<LoadedFile[]> {
+    const folder = zip.folder(folderName);
+    if (!folder) {
+      return [];
+    }
+
+    const entries = folder.filter(
+      (path, file) =>
+        !file.dir && !this.isNoiseFile(path) && predicate(path),
+    );
+    const root: string | undefined = (folder as any).root;
+    const files: LoadedFile[] = [];
+
+    for (const entry of entries) {
+      const relativeName =
+        root && entry.name.startsWith(root) ? entry.name.slice(root.length) : entry.name;
+      const buffer = await entry.async('arraybuffer');
+      const mime = this.guessMimeType(relativeName);
+      const blob = new Blob([buffer], mime ? { type: mime } : undefined);
+      files.push({ name: relativeName, blob });
+    }
+
+    return files;
+  }
+
+  private isNoiseFile(path: string): boolean {
+    const normalized = path.replace(/^\/+/, '');
+    const segments = normalized.split('/');
+    return segments.some((segment) => {
+      const lower = segment.toLowerCase();
+      return (
+        segment === '__MACOSX' ||
+        segment === '.DS_Store' ||
+        segment.startsWith('._') ||
+        lower === 'thumbs.db' ||
+        lower === 'desktop.ini'
+      );
+    });
+  }
+
+  private guessMimeType(name: string): string | undefined {
+    const ext = name.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'html':
+        return 'text/html';
+      case 'css':
+        return 'text/css';
+      case 'js':
+        return 'application/javascript';
+      case 'json':
+        return 'application/json';
+      case 'png':
+        return 'image/png';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'gif':
+        return 'image/gif';
+      case 'pdf':
+        return 'application/pdf';
+      case 'txt':
+        return 'text/plain';
+      default:
+        return undefined;
+    }
   }
 }

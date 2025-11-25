@@ -40,6 +40,75 @@
   gap: 0.75rem;
 }
 
+.attachments-wrapper {
+  position: relative;
+}
+
+.attachments-button {
+  border: 1px solid #e0e0e0;
+  background: #ffffff;
+  padding: 0.4rem 0.85rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.attachments-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+  min-width: 240px;
+  z-index: 10;
+  padding: 0.75rem;
+}
+
+.attachments-section + .attachments-section {
+  margin-top: 0.75rem;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 0.5rem;
+}
+
+.section-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+  color: #4a4a4a;
+}
+
+.attachments-section ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.attachments-section li + li {
+  margin-top: 0.35rem;
+}
+
+.attachments-section button {
+  border: none;
+  background: none;
+  color: #1a73e8;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 600;
+}
+
+.attachments-section button:hover,
+.attachments-section button:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
 .zoom-controls {
   display: flex;
   align-items: center;
