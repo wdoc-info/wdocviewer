@@ -42,6 +42,30 @@ describe('HtmlProcessingService', () => {
     expect(result).toContain('ok');
   });
 
+  it('sanitizes HTML while keeping wdoc-specific elements', async () => {
+    const service = getService();
+    const httpMock = TestBed.inject(HttpTestingController);
+    const html =
+      '<html><head></head><body>' +
+      '<div onclick="alert(1)">unsafe</div>' +
+      '<wdoc-page data-test="page"><wdoc-barcode type="CODE128" errorcorrection="H">hello</wdoc-barcode></wdoc-page>' +
+      '</body></html>';
+    const zip = new JSZip();
+
+    const promise = service.processHtml(zip, html);
+    httpMock.expectOne('assets/wdoc-styles.css').flush('');
+    const result = (await promise).html;
+    httpMock.verify();
+
+    expect(result).not.toContain('onclick');
+    const doc = parse(result);
+    const page = doc.querySelector('wdoc-page');
+    const barcode = doc.querySelector('wdoc-barcode');
+    expect(page?.getAttribute('data-test')).toBe('page');
+    expect(barcode?.getAttribute('type')).toBe('CODE128');
+    expect(barcode?.getAttribute('errorcorrection')).toBe('H');
+  });
+
   it('updates documentTitle from the head title element', async () => {
     const service = getService();
     const httpMock = TestBed.inject(HttpTestingController);
