@@ -112,6 +112,29 @@ describe('WdocLoaderService', () => {
     expect(result?.formAnswers.map((f) => f.name)).toContain('image.png');
   });
 
+  it('ignores OS metadata files in attachment and form folders', async () => {
+    const zip = new JSZip();
+    const attachments = zip.folder('wdoc-attachment');
+    attachments?.file('guide.pdf', 'pdf-data');
+    attachments?.file('.DS_Store', 'mac');
+    attachments?.file('__MACOSX/._guide.pdf', 'macos');
+    const forms = zip.folder('wdoc-form');
+    forms?.file('Thumbs.db', 'windows');
+    forms?.file('answer.json', '{"ok":true}');
+    zip.file('index.html', '<html><body>Doc</body></html>');
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' });
+
+    htmlProcessor.processHtml.and.resolveTo({
+      html: '<body>processed</body>',
+      documentTitle: 'Doc',
+    });
+
+    const result = await service.loadWdocFromArrayBuffer(buffer);
+
+    expect(result?.attachments.map((f) => f.name)).toEqual(['guide.pdf']);
+    expect(result?.formAnswers.map((f) => f.name)).toEqual(['answer.json']);
+  });
+
   it('guesses common mime types and falls back for unknown', () => {
     const guessMime = (service as any).guessMimeType.bind(service);
 

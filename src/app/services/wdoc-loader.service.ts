@@ -187,7 +187,10 @@ export class WdocLoaderService {
       return [];
     }
 
-    const entries = folder.filter((path, file) => !file.dir && predicate(path));
+    const entries = folder.filter(
+      (path, file) =>
+        !file.dir && !this.isNoiseFile(path) && predicate(path),
+    );
     const root: string | undefined = (folder as any).root;
     const files: LoadedFile[] = [];
 
@@ -201,6 +204,21 @@ export class WdocLoaderService {
     }
 
     return files;
+  }
+
+  private isNoiseFile(path: string): boolean {
+    const normalized = path.replace(/^\/+/, '');
+    const segments = normalized.split('/');
+    return segments.some((segment) => {
+      const lower = segment.toLowerCase();
+      return (
+        segment === '__MACOSX' ||
+        segment === '.DS_Store' ||
+        segment.startsWith('._') ||
+        lower === 'thumbs.db' ||
+        lower === 'desktop.ini'
+      );
+    });
   }
 
   private guessMimeType(name: string): string | undefined {
