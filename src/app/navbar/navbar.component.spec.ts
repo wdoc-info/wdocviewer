@@ -54,12 +54,21 @@ describe('NavbarComponent', () => {
 
   it('should open auth modal with stored email and clear status', () => {
     authService.getStoredEmail.and.returnValue('stored@example.com');
-    component.currentUserEmail = authService.getStoredEmail();
     component.openAuthModal();
 
     expect(component.isAuthModalOpen).toBeTrue();
     expect(component.email).toBe('stored@example.com');
     expect(component.statusMessage).toBe('');
+    expect(component.emailSent).toBeFalse();
+  });
+
+  it('should open settings modal when user already logged in', () => {
+    component.currentUserEmail = 'user@example.com';
+
+    component.openAuthModal();
+
+    expect(component.isSettingsModalOpen).toBeTrue();
+    expect(component.isAuthModalOpen).toBeFalse();
   });
 
   it('should show validation message when no email provided', async () => {
@@ -84,19 +93,21 @@ describe('NavbarComponent', () => {
     expect(component.isSubmitting).toBeFalse();
   });
 
-  it('should set status when sign in succeeds', async () => {
+  it('should set status when sign in succeeds and hide input', async () => {
     component.email = 'user@example.com';
 
     await component.onAuthSubmit();
 
     expect(authService.signInWithEmail).toHaveBeenCalledWith('user@example.com');
-    expect(component.statusMessage).toContain('Check your email');
+    expect(component.statusMessage).toContain('Please check your email');
     expect(component.currentUserEmail).toBe('user@example.com');
     expect(component.isSubmitting).toBeFalse();
+    expect(component.emailSent).toBeTrue();
   });
 
   it('should clear auth state on logout', async () => {
     component.currentUserEmail = 'user@example.com';
+    component.isSettingsModalOpen = true;
 
     await component.onLogout();
 
@@ -104,6 +115,7 @@ describe('NavbarComponent', () => {
     expect(component.currentUserEmail).toBeNull();
     expect(component.statusMessage).toBe('');
     expect(component.isSubmitting).toBeFalse();
+    expect(component.isSettingsModalOpen).toBeFalse();
   });
 
   it('should update current user when session changes', () => {

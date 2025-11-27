@@ -28,6 +28,8 @@ export class NavbarComponent implements OnInit, OnDestroy {
   @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
 
   isAuthModalOpen = false;
+  isSettingsModalOpen = false;
+  emailSent = false;
   email = '';
   statusMessage = '';
   isSubmitting = false;
@@ -63,13 +65,26 @@ export class NavbarComponent implements OnInit, OnDestroy {
   }
 
   openAuthModal() {
+    if (this.currentUserEmail) {
+      this.isSettingsModalOpen = true;
+      return;
+    }
     this.isAuthModalOpen = true;
     this.statusMessage = '';
-    this.email = this.currentUserEmail ?? '';
+    this.emailSent = false;
+    this.email =
+      this.currentUserEmail ?? this.authService.getStoredEmail() ?? '';
   }
 
   closeAuthModal() {
     this.isAuthModalOpen = false;
+    this.isSubmitting = false;
+    this.emailSent = false;
+    this.statusMessage = '';
+  }
+
+  closeSettingsModal() {
+    this.isSettingsModalOpen = false;
   }
 
   async onAuthSubmit() {
@@ -86,7 +101,8 @@ export class NavbarComponent implements OnInit, OnDestroy {
       return;
     }
     this.currentUserEmail = this.email;
-    this.statusMessage = 'Check your email to complete sign in or sign up.';
+    this.statusMessage = 'Please check your email.';
+    this.emailSent = true;
   }
 
   async onLogout() {
@@ -95,5 +111,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
     this.isSubmitting = false;
     this.currentUserEmail = null;
     this.statusMessage = '';
+    this.email = '';
+    this.isSettingsModalOpen = false;
   }
 }

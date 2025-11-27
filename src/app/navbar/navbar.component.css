@@ -66,16 +66,18 @@
 
 .auth-btn {
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
-.logout-btn {
-  margin-top: 0.75rem;
-  background: transparent;
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
+.auth-label {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav-btn:focus-visible,
@@ -174,6 +176,11 @@
   margin: 0;
   color: #2563eb;
   font-size: 0.95rem;
+}
+
+.user-email {
+  margin: 0;
+  font-weight: 600;
 }
 
 .modal-actions {
