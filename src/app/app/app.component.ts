@@ -23,6 +23,8 @@ import {
   WdocLoaderService,
 } from '../services/wdoc-loader.service';
 import { DialogService } from '../services/dialog.service';
+import { DocumentEditorComponent } from '../editor/document-editor.component';
+import { DocumentCreatorService } from '../services/document-creator.service';
 
 @Component({
   selector: 'app-root',
@@ -32,6 +34,7 @@ import { DialogService } from '../services/dialog.service';
     NavbarComponent,
     ViewerComponent,
     TopbarComponent,
+    DocumentEditorComponent,
     MatSidenavModule,
   ],
   templateUrl: './app.component.html',
@@ -42,13 +45,16 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   htmlContent: SafeHtml | null = null;
   showSave = false;
   isNavOpen = false;
+  isEditing = false;
   sidenavMode: MatDrawerMode = 'over';
   showDropOverlay = false;
   zoom = 100;
   private readonly defaultTitle = 'WDOC viewer';
+  private readonly newDocumentTitle = 'New document';
   private readonly minZoom = 25;
   private readonly maxZoom = 200;
   documentTitle = this.defaultTitle;
+  editorContent = '<p>Start writing...</p>';
   private originalArrayBuffer: ArrayBuffer | null = null;
   private resizeListener?: () => void;
   private isDesktop = false;
@@ -67,6 +73,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     private dialogService: DialogService,
     private cdr: ChangeDetectorRef,
     private zone: NgZone,
+    private documentCreatorService: DocumentCreatorService,
   ) {}
 
   attachments: LoadedFile[] = [];
@@ -312,8 +319,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       return null;
     }
 
-    const pageElement = (this.viewer.nativeElement.querySelector('wdoc-page') ||
-      this.viewer.nativeElement.firstElementChild) as HTMLElement | null;
+    const root = this.viewer.documentRoot ?? this.viewer.nativeElement;
+    const pageElement = (root.querySelector('wdoc-page') ||
+      root.firstElementChild) as HTMLElement | null;
 
     if (!pageElement) {
       return null;
@@ -342,6 +350,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.originalArrayBuffer = result.originalArrayBuffer;
     this.documentTitle = result.documentTitle;
+    this.isEditing = false;
     this.attachments = result.attachments;
     this.formAnswers = result.formAnswers;
     this.showSave = false;
@@ -355,5 +364,26 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onFormInteraction(): void {
     this.showSave = true;
+  }
+
+  startNewDocument(): void {
+    this.isEditing = true;
+    this.documentTitle = this.newDocumentTitle;
+    this.editorContent = '<p>Start writing...</p>';
+    this.showSave = true;
+    this.cdr.markForCheck();
+  }
+
+  onEditorContentChange(content: string): void {
+    this.editorContent = content;
+    this.showSave = true;
+  }
+
+  async onSaveNewDocument(): Promise<void> {
+    const content = this.editorContent?.trim()
+      ? this.editorContent
+      : '<p></p>';
+    await this.documentCreatorService.downloadWdocFromHtml(content);
+    this.showSave = false;
   }
 }

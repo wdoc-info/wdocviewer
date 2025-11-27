@@ -24,9 +24,11 @@ export class TopbarComponent implements OnChanges {
   @Input() hasDocument = false;
   @Input() attachments: LoadedFile[] = [];
   @Input() formAnswers: LoadedFile[] = [];
+  @Input() showNewDocument = false;
   @Output() toggleNav = new EventEmitter<void>();
   @Output() save = new EventEmitter<void>();
   @Output() zoomChange = new EventEmitter<number>();
+  @Output() createNewDocument = new EventEmitter<void>();
   zoomValue = '100';
   attachmentsMenuOpen = false;
 
@@ -51,6 +53,10 @@ export class TopbarComponent implements OnChanges {
 
   onSave() {
     this.save.emit();
+  }
+
+  onCreateNewDocument() {
+    this.createNewDocument.emit();
   }
 
   onZoomInput(event: Event) {
