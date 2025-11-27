@@ -25,4 +25,14 @@ describe('DocumentCreatorService', () => {
     const filePaths = manifestJson.files.map((f: any) => f.path);
     expect(filePaths).toContain('index.html');
   });
+
+  it('scopes default styles to the document wrapper', async () => {
+    const blob = await service.buildWdocBlob('<p>Draft</p>');
+    const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+    const indexContent = await zip.file('index.html')!.async('text');
+
+    expect(indexContent).toContain('class="wdoc-document"');
+    expect(indexContent).toContain('.wdoc-document h1');
+    expect(indexContent.includes('body {')).toBeFalse();
+  });
 });

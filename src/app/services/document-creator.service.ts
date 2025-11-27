@@ -31,13 +31,15 @@ export class DocumentCreatorService {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WDOC document</title>
   <style>
-    body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; margin: 32px; line-height: 1.6; }
-    h1, h2, h3, h4 { margin-top: 1.6em; }
-    p { margin: 0.8em 0; }
+    .wdoc-document { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; margin: 32px; line-height: 1.6; }
+    .wdoc-document h1, .wdoc-document h2, .wdoc-document h3, .wdoc-document h4 { margin-top: 1.6em; }
+    .wdoc-document p { margin: 0.8em 0; }
   </style>
 </head>
 <body>
+<div class="wdoc-document">
 ${content}
+</div>
 </body>
 </html>`;
   }

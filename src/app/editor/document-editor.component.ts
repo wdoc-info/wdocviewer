@@ -30,6 +30,7 @@ export class DocumentEditorComponent
   @ViewChild('editorHost') editorHost?: ElementRef<HTMLElement>;
 
   editor?: Editor;
+  private pendingExternalUpdate = false;
 
   ngOnChanges(changes: SimpleChanges): void {
     if (
@@ -37,7 +38,12 @@ export class DocumentEditorComponent
       this.editor &&
       typeof changes['content'].currentValue === 'string'
     ) {
-      this.editor.commands.setContent(this.content, { emitUpdate: false });
+      const currentHtml = this.editor.getHTML();
+      if (currentHtml !== this.content) {
+        this.pendingExternalUpdate = true;
+        this.editor.commands.setContent(this.content, { emitUpdate: false });
+        queueMicrotask(() => (this.pendingExternalUpdate = false));
+      }
     }
   }
 
@@ -47,7 +53,12 @@ export class DocumentEditorComponent
         element: this.editorHost.nativeElement,
         extensions: [StarterKit],
         content: this.content,
-        onUpdate: ({ editor }) => this.contentChange.emit(editor.getHTML()),
+        onUpdate: ({ editor }) => {
+          if (this.pendingExternalUpdate) {
+            return;
+          }
+          this.contentChange.emit(editor.getHTML());
+        },
       });
     }
   }
