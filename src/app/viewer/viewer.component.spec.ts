@@ -24,8 +24,10 @@ describe('ViewerComponent', () => {
   it('should render html content', () => {
     component.htmlContent = '<p>hello</p>' as any;
     fixture.detectChanges();
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain('hello');
+    const host = fixture.nativeElement.querySelector(
+      '.viewer-shadow-host'
+    ) as HTMLElement;
+    expect(host.shadowRoot?.textContent).toContain('hello');
   });
 
   it('applies zoom to the content container', async () => {
@@ -36,7 +38,9 @@ describe('ViewerComponent', () => {
     component.zoom = 150;
     fixture.detectChanges();
     await fixture.whenStable();
-    const page = fixture.nativeElement.querySelector('wdoc-page') as HTMLElement;
+    const page = fixture.nativeElement
+      .querySelector('.viewer-shadow-host')
+      ?.shadowRoot?.querySelector('wdoc-page') as HTMLElement;
     expect(page.style.zoom).toBe('1.5');
   });
 
@@ -61,7 +65,9 @@ describe('ViewerComponent', () => {
     tick();
 
     expect(applySpy).toHaveBeenCalled();
-    const page = fixture.nativeElement.querySelector('wdoc-page') as HTMLElement;
+    const page = fixture.nativeElement
+      .querySelector('.viewer-shadow-host')
+      ?.shadowRoot?.querySelector('wdoc-page') as HTMLElement;
     expect(page.style.zoom).toBe('1.1');
   }));
 
@@ -90,4 +96,18 @@ describe('ViewerComponent', () => {
 
     expect(applySpy).toHaveBeenCalled();
   }));
+
+  it('isolates document styles inside the shadow root', () => {
+    component.htmlContent = sanitizer.bypassSecurityTrustHtml(`
+      <style>body { margin: 32px; }</style>
+      <div class="doc">content</div>
+    `);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement.querySelector(
+      '.viewer-shadow-host'
+    ) as HTMLElement;
+    expect(getComputedStyle(host).margin).toBe('0px');
+    expect(host.shadowRoot?.textContent).toContain('content');
+  });
 });

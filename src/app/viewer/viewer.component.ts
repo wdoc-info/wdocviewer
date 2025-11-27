@@ -29,9 +29,13 @@ export class ViewerComponent implements AfterViewInit, OnChanges {
   @ViewChild('scrollContainer') scrollContainer?: ElementRef;
   private viewInitialized = false;
   private pendingZoomRefresh = false;
+  private pendingContentRender = false;
+  private shadowRoot?: ShadowRoot;
 
   ngAfterViewInit() {
+    this.createShadowRoot();
     this.viewInitialized = true;
+    this.renderContent();
     this.applyZoom();
     if (this.pendingZoomRefresh) {
       this.pendingZoomRefresh = false;
@@ -44,9 +48,11 @@ export class ViewerComponent implements AfterViewInit, OnChanges {
       this.applyZoom();
     }
     if (changes['htmlContent'] && this.viewInitialized) {
+      this.renderContent();
       this.scheduleZoomRefresh();
     } else if (changes['htmlContent']) {
       this.pendingZoomRefresh = true;
+      this.pendingContentRender = true;
     }
   }
 
@@ -54,21 +60,22 @@ export class ViewerComponent implements AfterViewInit, OnChanges {
     return this.contentContainer?.nativeElement as HTMLElement;
   }
 
+  get documentRoot(): ShadowRoot | undefined {
+    return this.shadowRoot;
+  }
+
   onFormInteraction(): void {
     this.formInteraction.emit();
   }
 
   private applyZoom() {
-    const container = this.contentContainer
-      ?.nativeElement as HTMLElement | null;
-    if (!container) {
+    const root = this.shadowRoot;
+    if (!root) {
       return;
     }
     const scale = Math.max(10, this.zoom) / 100;
 
-    const pages = Array.from(
-      container.querySelectorAll('wdoc-page')
-    ) as HTMLElement[];
+    const pages = Array.from(root.querySelectorAll('wdoc-page')) as HTMLElement[];
 
     pages.forEach((page) => {
       page.style.zoom = `${scale}`;
@@ -77,5 +84,29 @@ export class ViewerComponent implements AfterViewInit, OnChanges {
 
   private scheduleZoomRefresh(): void {
     queueMicrotask(() => this.applyZoom());
+  }
+
+  private createShadowRoot(): void {
+    const host = this.contentContainer?.nativeElement as HTMLElement | null;
+    if (!host || this.shadowRoot) {
+      return;
+    }
+    this.shadowRoot = host.attachShadow({ mode: 'open' });
+    this.shadowRoot.addEventListener('input', () => this.onFormInteraction());
+    this.shadowRoot.addEventListener('change', () => this.onFormInteraction());
+  }
+
+  private renderContent(): void {
+    if (!this.shadowRoot) {
+      this.pendingContentRender = true;
+      return;
+    }
+
+    if (this.pendingContentRender) {
+      this.pendingContentRender = false;
+    }
+
+    const htmlString = (this.htmlContent ?? '') as unknown as string;
+    this.shadowRoot.innerHTML = htmlString;
   }
 }

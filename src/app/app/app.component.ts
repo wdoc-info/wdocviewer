@@ -319,8 +319,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       return null;
     }
 
-    const pageElement = (this.viewer.nativeElement.querySelector('wdoc-page') ||
-      this.viewer.nativeElement.firstElementChild) as HTMLElement | null;
+    const root = this.viewer.documentRoot ?? this.viewer.nativeElement;
+    const pageElement = (root.querySelector('wdoc-page') ||
+      root.firstElementChild) as HTMLElement | null;
 
     if (!pageElement) {
       return null;
