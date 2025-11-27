@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
-import { createClient, Session, SupabaseClient } from '@supabase/supabase-js';
+import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { BehaviorSubject } from 'rxjs';
 import { supabaseConfig } from '../config/supabase.config';
+import { getSupabaseClient } from './supabase-client';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -11,7 +12,7 @@ export class AuthService {
   session$ = this.sessionSubject.asObservable();
 
   constructor() {
-    this.supabase = createClient(supabaseConfig.url, supabaseConfig.anonKey);
+    this.supabase = getSupabaseClient();
     void this.loadInitialSession();
 
     this.supabase.auth.onAuthStateChange((_event, session) => {
