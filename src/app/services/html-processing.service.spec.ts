@@ -262,6 +262,23 @@ describe('HtmlProcessingService', () => {
     expect(httpSpy.calls.mostRecent().args[0]).toBe('assets/wdoc-styles.css');
   });
 
+  it('keeps pagination styles out of the host document', async () => {
+    const service = getService();
+    const http = TestBed.inject(HttpClient);
+    const httpSpy = spyOn(http, 'get').and.returnValue(of(''));
+    const baselineMarginTop = getComputedStyle(document.body).marginTop;
+
+    const html =
+      '<html><head><style>body{margin:32px;}</style></head><body><wdoc-page></wdoc-page></body></html>';
+
+    await service.processHtml(new JSZip(), html);
+
+    expect(document.head.querySelector('[data-pagination-styles]')).toBeNull();
+    expect(getComputedStyle(document.body).marginTop).toBe(baselineMarginTop);
+    expect(httpSpy.calls.mostRecent().args[0]).toBe('assets/wdoc-styles.css');
+    service.cleanup();
+  });
+
   it('releases object URLs during cleanup', async () => {
     const service = getService();
     const http = TestBed.inject(HttpClient);

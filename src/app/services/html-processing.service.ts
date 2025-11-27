@@ -18,6 +18,7 @@ interface ProcessHtmlOptions {
 @Injectable({ providedIn: 'root' })
 export class HtmlProcessingService {
   private paginationStyleEl?: HTMLStyleElement;
+  private paginationHost?: HTMLElement;
   private htmlPageSplitter?: HtmlPageSplitter;
   private paginationContainer?: HTMLElement;
   private objectUrls: string[] = [];
@@ -303,12 +304,12 @@ export class HtmlProcessingService {
   }
 
   cleanup(): void {
-    if (this.paginationStyleEl?.parentElement) {
-      this.paginationStyleEl.remove();
+    if (this.paginationHost?.parentElement) {
+      this.paginationHost.remove();
     }
-    if (this.paginationContainer?.parentElement) {
-      this.paginationContainer.remove();
-    }
+    this.paginationHost = undefined;
+    this.paginationContainer = undefined;
+    this.paginationStyleEl = undefined;
     this.htmlPageSplitter?.abort();
     this.objectUrls.forEach((url) => URL.revokeObjectURL(url));
     this.objectUrls = [];
@@ -319,13 +320,23 @@ export class HtmlProcessingService {
       return;
     }
 
-    if (!this.paginationStyleEl) {
-      this.paginationStyleEl = document.createElement('style');
-      this.paginationStyleEl.setAttribute('data-pagination-styles', 'true');
-      document.head.appendChild(this.paginationStyleEl);
+    if (!this.paginationStyleEl || !this.paginationContainer) {
+      const container = this.paginationContainer ?? this.createPaginationContainer();
+      if (!this.paginationContainer && container) {
+        this.paginationContainer = container;
+      }
     }
 
-    this.paginationStyleEl.textContent = cssText;
+    const styleTarget = this.paginationHost?.shadowRoot;
+    if (!this.paginationStyleEl && styleTarget) {
+      this.paginationStyleEl = document.createElement('style');
+      this.paginationStyleEl.setAttribute('data-pagination-styles', 'true');
+      styleTarget.prepend(this.paginationStyleEl);
+    }
+
+    if (this.paginationStyleEl) {
+      this.paginationStyleEl.textContent = cssText;
+    }
 
     if (this.paginationContainer) {
       const probePage = document.createElement('wdoc-page');
@@ -351,20 +362,31 @@ export class HtmlProcessingService {
     if (typeof document === 'undefined') {
       return undefined;
     }
-    const container = document.createElement('div');
-    container.style.position = 'absolute';
-    container.style.visibility = 'hidden';
-    container.style.pointerEvents = 'none';
-    container.style.top = '0';
-    container.style.left = '0';
-    container.style.width = '793.8px';
-    container.style.padding = '20px';
-    container.style.boxSizing = 'border-box';
-    container.style.minHeight = '1122px';
-    container.style.height = 'auto';
-    container.style.overflow = 'visible';
-    container.style.zIndex = '-1';
-    document.body.appendChild(container);
+
+    const host = document.createElement('div');
+    host.style.position = 'absolute';
+    host.style.visibility = 'hidden';
+    host.style.pointerEvents = 'none';
+    host.style.top = '0';
+    host.style.left = '0';
+    host.style.width = '793.8px';
+    host.style.padding = '20px';
+    host.style.boxSizing = 'border-box';
+    host.style.minHeight = '1122px';
+    host.style.height = 'auto';
+    host.style.overflow = 'visible';
+    host.style.zIndex = '-1';
+
+    const shadowRoot = host.attachShadow({ mode: 'open' });
+    this.paginationStyleEl = document.createElement('style');
+    this.paginationStyleEl.setAttribute('data-pagination-styles', 'true');
+    const container = document.createElement('body');
+
+    shadowRoot.appendChild(this.paginationStyleEl);
+    shadowRoot.appendChild(container);
+
+    document.body.appendChild(host);
+    this.paginationHost = host;
     return container;
   }
 
