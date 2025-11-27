@@ -11,7 +11,8 @@ import {
   EventEmitter,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { SafeHtml } from '@angular/platform-browser';
+import { SecurityContext } from '@angular/core';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-viewer',
@@ -31,6 +32,8 @@ export class ViewerComponent implements AfterViewInit, OnChanges {
   private pendingZoomRefresh = false;
   private pendingContentRender = false;
   private shadowRoot?: ShadowRoot;
+
+  constructor(private sanitizer: DomSanitizer) {}
 
   ngAfterViewInit() {
     this.createShadowRoot();
@@ -106,7 +109,9 @@ export class ViewerComponent implements AfterViewInit, OnChanges {
       this.pendingContentRender = false;
     }
 
-    const htmlString = (this.htmlContent ?? '') as unknown as string;
-    this.shadowRoot.innerHTML = htmlString;
+    const htmlString = this.htmlContent
+      ? this.sanitizer.sanitize(SecurityContext.HTML, this.htmlContent)
+      : '';
+    this.shadowRoot.innerHTML = htmlString ?? '';
   }
 }

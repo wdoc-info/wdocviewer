@@ -30,6 +30,20 @@ describe('ViewerComponent', () => {
     expect(host.shadowRoot?.textContent).toContain('hello');
   });
 
+  it('sanitizes SafeHtml before injecting into the shadow root', () => {
+    const safe = sanitizer.bypassSecurityTrustHtml('<div>trusted</div>');
+    component.htmlContent = safe;
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement.querySelector(
+      '.viewer-shadow-host'
+    ) as HTMLElement;
+    const shadowText = host.shadowRoot?.textContent ?? '';
+
+    expect(shadowText).toContain('trusted');
+    expect(shadowText).not.toContain('SafeValue must use [property]=binding:');
+  });
+
   it('applies zoom to the content container', async () => {
     const content: SafeHtml = sanitizer.bypassSecurityTrustHtml(
       '<wdoc-container><wdoc-page>zoom</wdoc-page></wdoc-container>'
