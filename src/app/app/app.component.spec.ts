@@ -5,12 +5,14 @@ import { FormManagerService } from '../services/form-manager.service';
 import { HtmlProcessingService } from '../services/html-processing.service';
 import { WdocLoaderService } from '../services/wdoc-loader.service';
 import { DialogService } from '../services/dialog.service';
+import { DocumentCreatorService } from '../services/document-creator.service';
 
 describe('AppComponent', () => {
   let formManager: jasmine.SpyObj<FormManagerService>;
   let wdocLoader: jasmine.SpyObj<WdocLoaderService>;
   let htmlProcessor: jasmine.SpyObj<HtmlProcessingService>;
   let dialogService: jasmine.SpyObj<DialogService>;
+  let documentCreator: jasmine.SpyObj<DocumentCreatorService>;
 
   beforeEach(async () => {
     formManager = jasmine.createSpyObj('FormManagerService', ['saveForms']);
@@ -20,6 +22,9 @@ describe('AppComponent', () => {
     htmlProcessor = jasmine.createSpyObj('HtmlProcessingService', ['cleanup']);
     dialogService = jasmine.createSpyObj('DialogService', ['openAlert']);
     dialogService.openAlert.and.resolveTo();
+    documentCreator = jasmine.createSpyObj('DocumentCreatorService', [
+      'downloadWdocFromHtml',
+    ]);
 
     await TestBed.configureTestingModule({
       imports: [HttpClientTestingModule, AppComponent],
@@ -28,6 +33,7 @@ describe('AppComponent', () => {
         { provide: WdocLoaderService, useValue: wdocLoader },
         { provide: HtmlProcessingService, useValue: htmlProcessor },
         { provide: DialogService, useValue: dialogService },
+        { provide: DocumentCreatorService, useValue: documentCreator },
       ],
     }).compileComponents();
   });
@@ -155,6 +161,16 @@ describe('AppComponent', () => {
 
     expect(formManager.saveForms).toHaveBeenCalledWith(container, buffer);
     expect(app.showSave).toBeFalse();
+  });
+
+  it('creates a new document and triggers a download on save', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    app.startNewDocument();
+    await app.onSaveNewDocument();
+
+    expect(app.isEditing).toBeTrue();
+    expect(documentCreator.downloadWdocFromHtml).toHaveBeenCalled();
   });
 
   it('handles dragenter/leave to toggle overlay depth', () => {

@@ -1,0 +1,23 @@
+<div class="editor-wrapper">
+  <div class="editor-toolbar" role="toolbar" aria-label="Editor tools">
+    <button type="button" (click)="toggleBold()" [class.active]="isActive('bold')">
+      Bold
+    </button>
+    <button type="button" (click)="toggleItalic()" [class.active]="isActive('italic')">
+      Italic
+    </button>
+    <button type="button" (click)="setHeading(2)" [class.active]="isActive('heading', { level: 2 })">
+      H2
+    </button>
+    <button type="button" (click)="setHeading(3)" [class.active]="isActive('heading', { level: 3 })">
+      H3
+    </button>
+    <button type="button" (click)="toggleBulletList()" [class.active]="isActive('bulletList')">
+      Bullet list
+    </button>
+    <button type="button" (click)="toggleOrderedList()" [class.active]="isActive('orderedList')">
+      Numbered list
+    </button>
+  </div>
+  <div #editorHost class="editor-surface" aria-label="Document content"></div>
+</div>

@@ -23,6 +23,8 @@
     "@angular/service-worker": "^20.3.13",
     "@supabase/supabase-js": "^2.86.0",
     "@talers/html-pages": "^0.5.5",
+    "@tiptap/core": "^3.11.1",
+    "@tiptap/starter-kit": "^3.11.1",
     "dompurify": "^3.3.0",
     "jsbarcode": "^3.12.1",
     "jszip": "^3.10.1",

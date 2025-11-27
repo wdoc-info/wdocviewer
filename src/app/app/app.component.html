@@ -16,22 +16,31 @@
   <mat-sidenav-content>
     <div class="main-content">
       <app-topbar
-        [showSave]="showSave"
+        [showSave]="isEditing || showSave"
         [navOpen]="isNavOpen"
         [title]="documentTitle"
         [zoom]="zoom"
-        [hasDocument]="!!htmlContent"
+        [hasDocument]="!isEditing && !!htmlContent"
         [attachments]="attachments"
         [formAnswers]="formAnswers"
+        [showNewDocument]="true"
         (toggleNav)="toggleNav()"
-        (save)="onSaveForms()"
+        (save)="isEditing ? onSaveNewDocument() : onSaveForms()"
         (zoomChange)="onZoomChange($event)"
+        (createNewDocument)="startNewDocument()"
       ></app-topbar>
-      <app-viewer
-        [htmlContent]="htmlContent"
-        [zoom]="zoom"
-        (formInteraction)="onFormInteraction()"
-      ></app-viewer>
+      @if (isEditing) {
+        <app-document-editor
+          [content]="editorContent"
+          (contentChange)="onEditorContentChange($event)"
+        ></app-document-editor>
+      } @else {
+        <app-viewer
+          [htmlContent]="htmlContent"
+          [zoom]="zoom"
+          (formInteraction)="onFormInteraction()"
+        ></app-viewer>
+      }
     </div>
   </mat-sidenav-content>
 </mat-sidenav-container>

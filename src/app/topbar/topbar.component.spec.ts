@@ -31,6 +31,15 @@ describe('TopbarComponent', () => {
     expect(component.save.emit).toHaveBeenCalled();
   });
 
+  it('emits createNewDocument when the button is clicked', () => {
+    component.showNewDocument = true;
+    fixture.detectChanges();
+    spyOn(component.createNewDocument, 'emit');
+    const btn = fixture.nativeElement.querySelector('.topbar-new');
+    btn.click();
+    expect(component.createNewDocument.emit).toHaveBeenCalled();
+  });
+
   it('renders the provided title', () => {
     component.title = 'My Document';
     fixture.detectChanges();
