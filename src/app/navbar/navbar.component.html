@@ -26,4 +26,55 @@
       tabindex="-1"
     />
   </div>
+  <footer class="nav-footer">
+    <button type="button" class="nav-btn auth-btn" (click)="openAuthModal()">
+      {{ currentUserEmail || 'Login / Sign up' }}
+    </button>
+    <button
+      *ngIf="currentUserEmail"
+      type="button"
+      class="logout-btn"
+      (click)="onLogout()"
+      [disabled]="isSubmitting"
+    >
+      Log out
+    </button>
+  </footer>
+
+  <div class="modal-backdrop" *ngIf="isAuthModalOpen" (click)="closeAuthModal()">
+    <div class="modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-title">Login or sign up</h3>
+        <button type="button" class="modal-close" (click)="closeAuthModal()" aria-label="Close dialog">
+          &times;
+        </button>
+      </div>
+      <div class="modal-body">
+        <label class="input-label" for="auth-email">Email address</label>
+        <input
+          id="auth-email"
+          name="email"
+          type="email"
+          [(ngModel)]="email"
+          class="modal-input"
+          placeholder="you@example.com"
+          required
+        />
+        <p class="status-message" *ngIf="statusMessage">{{ statusMessage }}</p>
+      </div>
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="nav-btn full-width"
+          (click)="onAuthSubmit()"
+          [disabled]="isSubmitting"
+        >
+          {{ isSubmitting ? 'Sending...' : 'Send login link' }}
+        </button>
+      </div>
+      <p class="hint">
+        We will send a login or signup link to your email.
+      </p>
+    </div>
+  </div>
 </aside>
