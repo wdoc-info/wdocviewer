@@ -14,3 +14,8 @@ export function getSupabaseClient(): SupabaseClient {
   }
   return supabase;
 }
+
+// Exposed for testing so specs can provide a stubbed client without touching the real network.
+export function setSupabaseClient(client: SupabaseClient | null): void {
+  supabase = client;
+}

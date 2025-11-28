@@ -35,4 +35,34 @@ describe('DocumentCreatorService', () => {
     expect(indexContent).toContain('.wdoc-document h1');
     expect(indexContent.includes('body {')).toBeFalse();
   });
+
+  it('downloads a wdoc with the provided filename', async () => {
+    const createObjectUrlSpy = spyOn(URL, 'createObjectURL').and.returnValue('blob:url');
+    const revokeSpy = spyOn(URL, 'revokeObjectURL');
+    const clickSpy = spyOn(HTMLAnchorElement.prototype, 'click');
+
+    await service.downloadWdocFromHtml('<p>content</p>', 'custom-name.wdoc');
+
+    expect(createObjectUrlSpy).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+    expect(revokeSpy).toHaveBeenCalledWith('blob:url');
+  });
+
+  it('labels manifest entries with roles and mime types', async () => {
+    const zip = new JSZip();
+    zip.file('index.html', '<p>hello</p>');
+    zip.folder('wdoc-form')?.file('form-1.json', '{}');
+    zip.file('assets/image.png', 'data');
+
+    const manifest = await (service as any).generateContentManifest(zip);
+    const files = JSON.parse(manifest).files as Array<{ path: string; role: string; mime: string }>;
+    const roles = files.reduce<Record<string, string>>((acc, file) => {
+      acc[file.path] = file.role;
+      return acc;
+    }, {});
+
+    expect(roles['index.html']).toBe('doc_core');
+    expect(roles['wdoc-form/form-1.json']).toBe('form_instance');
+    expect(files.find((f) => f.path === 'assets/image.png')?.mime).toBe('image/png');
+  });
 });
