@@ -1,6 +1,10 @@
 import { Injectable } from '@angular/core';
 import JSZip from 'jszip';
-import { WdocLoaderService } from './wdoc-loader.service';
+import {
+  ManifestMetaOverrides,
+  generateManifest,
+  serializeManifest,
+} from './manifest-builder';
 
 @Injectable({ providedIn: 'root' })
 export class DocumentCreatorService {
@@ -18,8 +22,8 @@ export class DocumentCreatorService {
     const wrapped = this.wrapHtml(html);
     zip.file('index.html', wrapped);
     zip.folder('wdoc-form');
-    const manifest = await this.generateContentManifest(zip);
-    zip.file('content_manifest.json', manifest);
+    const manifest = await this.generateManifest(zip);
+    zip.file('manifest.json', manifest);
     return zip.generateAsync({ type: 'blob' });
   }
 
@@ -44,69 +48,15 @@ ${content}
 </html>`;
   }
 
-  private async generateContentManifest(zip: JSZip): Promise<string> {
-    const files = [] as Array<{
-      path: string;
-      mime: string;
-      sha256: string;
-      role: string;
-    }>;
+  private async generateManifest(zip: JSZip): Promise<string> {
+    const manifest = await generateManifest(zip, this.buildManifestMeta());
+    return serializeManifest(manifest);
+  }
 
-    const entries = Object.values(zip.files);
-    for (const entry of entries) {
-      if (entry.dir || entry.name === 'content_manifest.json') {
-        continue;
-      }
-      const buffer = await entry.async('arraybuffer');
-      const sha256 = await WdocLoaderService.computeSha256(new Uint8Array(buffer));
-      files.push({
-        path: entry.name,
-        mime: this.guessMimeType(entry.name),
-        sha256,
-        role: this.determineRole(entry.name),
-      });
-    }
-
-    files.sort((a, b) => a.path.localeCompare(b.path));
-
-    const manifest = {
-      version: '1.0',
-      created: new Date().toISOString(),
-      algorithm: 'sha256',
-      files,
+  private buildManifestMeta(): ManifestMetaOverrides {
+    return {
+      docTitle: 'WDOC document',
+      creator: 'wdoc-webapp',
     };
-
-    return JSON.stringify(manifest, null, 2);
-  }
-
-  private determineRole(path: string): string {
-    if (path === 'index.html') {
-      return 'doc_core';
-    }
-    if (path.startsWith('wdoc-form/')) {
-      return 'form_instance';
-    }
-    return 'asset';
-  }
-
-  private guessMimeType(name: string): string {
-    const ext = name.split('.').pop()?.toLowerCase();
-    switch (ext) {
-      case 'html':
-        return 'text/html';
-      case 'css':
-        return 'text/css';
-      case 'json':
-        return 'application/json';
-      case 'png':
-        return 'image/png';
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'gif':
-        return 'image/gif';
-      default:
-        return 'application/octet-stream';
-    }
   }
 }

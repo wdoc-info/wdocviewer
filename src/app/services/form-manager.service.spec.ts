@@ -151,16 +151,14 @@ describe('FormManagerService', () => {
     expect(attachment).toBe('hello');
 
     const manifest = JSON.parse(
-      await savedZip.file('content_manifest.json')!.async('text'),
-    ) as { files: Array<{ path: string; role: string; mime: string }>; };
-    const roles = manifest.files.reduce<Record<string, string>>((acc, entry) => {
-      acc[entry.path] = entry.role;
-      return acc;
-    }, {});
+      await savedZip.file('manifest.json')!.async('text'),
+    ) as any;
 
-    expect(roles['index.html']).toBe('doc_core');
-    expect(roles['wdoc-form/form1.json']).toBe('form_instance');
-    expect(roles['wdoc-form/note.txt']).toBe('form_attachment');
+    expect(manifest.content.files['index.html']).toBeDefined();
+    expect(
+      manifest.runtime.forms.default.files['wdoc-form/form1.json'],
+    ).toBeDefined();
+    expect(manifest.runtime.forms.default.files['wdoc-form/note.txt']).toBeDefined();
   });
 
   it('blocks saving when HTML form validation fails', async () => {

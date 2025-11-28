@@ -1,6 +1,11 @@
 import { Injectable } from '@angular/core';
 import JSZip from 'jszip';
-import { WdocLoaderService } from './wdoc-loader.service';
+import {
+  ManifestMetaOverrides,
+  WdocManifest,
+  generateManifest,
+  serializeManifest,
+} from './manifest-builder';
 
 @Injectable({ providedIn: 'root' })
 export class FormManagerService {
@@ -121,7 +126,7 @@ export class FormManagerService {
       const name = id ? `${id}.json` : `form-${idx++}.json`;
       formsFolder?.file(name, JSON.stringify(data));
     }
-    await this.addContentManifest(newZip);
+    await this.addManifest(newZip);
     const blob = await newZip.generateAsync({ type: 'blob' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -142,61 +147,39 @@ export class FormManagerService {
   }
 
   private async addContentManifest(zip: JSZip): Promise<void> {
-    const files = [] as Array<{
-      path: string;
-      mime: string;
-      sha256: string;
-      role: string;
-    }>;
-
-    const entries = Object.values(zip.files);
-    for (const entry of entries) {
-      if (entry.dir || entry.name === 'content_manifest.json') {
-        continue;
-      }
-      const buffer = await entry.async('arraybuffer');
-      const sha256 = await WdocLoaderService.computeSha256(new Uint8Array(buffer));
-      files.push({
-        path: entry.name,
-        mime: this.guessMimeType(entry.name),
-        sha256,
-        role: this.determineRole(entry.name),
-      });
-    }
-
-    files.sort((a, b) => a.path.localeCompare(b.path));
-
-    const manifest = {
-      version: '1.0',
-      created: new Date().toISOString(),
-      algorithm: 'sha256',
-      files,
-    };
-
-    zip.file('content_manifest.json', JSON.stringify(manifest, null, 2));
+    await this.addManifest(zip);
   }
 
-  private determineRole(path: string): string {
-    if (path === 'index.html') {
-      return 'doc_core';
-    }
-    if (path.startsWith('wdoc-form/')) {
-      return path.endsWith('.json') ? 'form_instance' : 'form_attachment';
-    }
-    return 'asset';
+  private async addManifest(zip: JSZip): Promise<void> {
+    const manifestMeta = await this.extractExistingMeta(zip);
+    const manifest = await generateManifest(zip, manifestMeta);
+    zip.remove('content_manifest.json');
+    zip.file('manifest.json', serializeManifest(manifest));
   }
 
-  private guessMimeType(name: string): string {
+  private async extractExistingMeta(zip: JSZip): Promise<ManifestMetaOverrides> {
+    const manifestFile = zip.file('manifest.json');
+    if (!manifestFile) {
+      return {};
+    }
+
+    try {
+      const content = await manifestFile.async('text');
+      const parsed = JSON.parse(content) as WdocManifest;
+      return {
+        docTitle: parsed.meta?.docTitle,
+        creator: parsed.meta?.creator,
+        appVersion: parsed.meta?.appVersion,
+        creationDate: parsed.meta?.creationDate,
+      } satisfies ManifestMetaOverrides;
+    } catch {
+      return {};
+    }
+  }
+
+  private guessMimeType(name: string): string | undefined {
     const ext = name.split('.').pop()?.toLowerCase();
     switch (ext) {
-      case 'html':
-        return 'text/html';
-      case 'css':
-        return 'text/css';
-      case 'js':
-        return 'application/javascript';
-      case 'json':
-        return 'application/json';
       case 'png':
         return 'image/png';
       case 'jpg':
@@ -209,7 +192,7 @@ export class FormManagerService {
       case 'txt':
         return 'text/plain';
       default:
-        return 'application/octet-stream';
+        return undefined;
     }
   }
 }
