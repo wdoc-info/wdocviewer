@@ -29,18 +29,27 @@
       >
         <div class="page-stack" [style.height.px]="pageStackHeight" aria-hidden="true">
           @for (page of pageCountArray; track page) {
-            <wdoc-page></wdoc-page>
+            <wdoc-page
+              [style.width.px]="pageWidth"
+              [style.height.px]="pageHeight"
+              [style.padding.px]="pagePadding"
+            ></wdoc-page>
           }
         </div>
 
-        <div
-          #editorHost
-          class="editor-surface"
-          aria-label="Document content"
+        <wdoc-page
+          class="page-shell"
           [style.width.px]="pageWidth"
           [style.minHeight.px]="pageHeight"
           [style.padding.px]="pagePadding"
-        ></div>
+        >
+          <div
+            #editorHost
+            class="editor-surface"
+            aria-label="Document content"
+            [style.minHeight.px]="pageHeight - pagePadding * 2"
+          ></div>
+        </wdoc-page>
       </div>
     </wdoc-content>
   </wdoc-container>

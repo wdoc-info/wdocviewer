@@ -40,6 +40,7 @@ export class DocumentEditorComponent
   pageCount = 1;
   private resizeObserver?: ResizeObserver;
   private paginationRaf = 0;
+  private placeholderCleared = false;
 
   ngOnChanges(changes: SimpleChanges): void {
     if (
@@ -55,9 +56,15 @@ export class DocumentEditorComponent
         this.schedulePaginationUpdate();
       }
     }
+
+    if (changes['content']) {
+      this.placeholderCleared = this.content !== '<p>Start writing...</p>';
+    }
   }
 
   ngAfterViewInit(): void {
+    this.placeholderCleared = this.content !== '<p>Start writing...</p>';
+
     if (this.editorHost) {
       this.editor = new Editor({
         element: this.editorHost.nativeElement,
@@ -69,6 +76,18 @@ export class DocumentEditorComponent
           }
           this.contentChange.emit(editor.getHTML());
           this.schedulePaginationUpdate();
+        },
+        onFocus: ({ editor }: { editor: Editor }) => {
+          if (this.placeholderCleared) {
+            return;
+          }
+
+          const currentHtml = editor.getHTML().trim();
+          if (currentHtml === '<p>Start writing...</p>') {
+            this.placeholderCleared = true;
+            editor.commands.setContent('<p></p>');
+            this.schedulePaginationUpdate();
+          }
         },
       });
     }
@@ -142,7 +161,7 @@ export class DocumentEditorComponent
     }
 
     const usableHeight = this.pageHeight - this.pagePadding * 2;
-    const totalHeight = host.scrollHeight - this.pagePadding * 2;
+    const totalHeight = host.scrollHeight;
     const pageStride = usableHeight + this.pageGap;
     const nextPageCount = Math.max(
       1,

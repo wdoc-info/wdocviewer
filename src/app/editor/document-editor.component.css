@@ -62,17 +62,36 @@
 
 .page-stack wdoc-page {
   margin: 0 0 20px 0;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  width: 100%;
+  height: auto;
+}
+
+.page-shell {
+  position: relative;
+  z-index: 1;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+  margin-bottom: 20px;
 }
 
 .editor-surface {
-  position: relative;
-  z-index: 1;
-  background: transparent;
+  width: 100%;
   border: none;
   line-height: 1.6;
   font-size: 16px;
   box-sizing: border-box;
-  margin: 0 auto;
+  margin: 0;
+}
+
+.editor-wrapper :focus-visible {
+  outline: none;
 }
 
 .ProseMirror,
