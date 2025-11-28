@@ -22,20 +22,16 @@
 
   <wdoc-container class="editor-container">
     <wdoc-content class="editor-content">
-      <div class="page-list" [style.width.px]="pageWidth">
+      <div class="page-list">
         @for (page of pageContents; let i = $index; track i) {
           <wdoc-page
             class="page-shell"
-            [style.width.px]="pageWidth"
-            [style.minHeight.px]="pageHeight"
-            [style.padding.px]="pagePadding"
           >
             <div
               #pageHost
               class="editor-surface"
               aria-label="Document content"
               [attr.data-page-index]="i"
-              [style.minHeight.px]="pageHeight - pagePadding * 2"
             ></div>
           </wdoc-page>
         }

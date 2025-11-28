@@ -6,6 +6,7 @@ import {
   EventEmitter,
   Input,
   OnDestroy,
+  OnInit,
   OnChanges,
   SimpleChanges,
   Output,
@@ -26,7 +27,7 @@ import { Level } from '@tiptap/extension-heading';
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class DocumentEditorComponent
-  implements AfterViewInit, OnDestroy, OnChanges
+  implements OnInit, AfterViewInit, OnDestroy, OnChanges
 {
   @Input() content = '<p>Start writing...</p>';
   @Output() contentChange = new EventEmitter<string>();
@@ -43,6 +44,15 @@ export class DocumentEditorComponent
   private paginationRaf = 0;
   private placeholderCleared = false;
   private pendingSelectionOffset: number | null = null;
+
+  get editor(): Editor | undefined {
+    return this.editors[0];
+  }
+
+  ngOnInit(): void {
+    this.placeholderCleared = this.content !== '<p>Start writing...</p>';
+    this.updatePagesFromHtml(this.content);
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (
@@ -66,8 +76,6 @@ export class DocumentEditorComponent
   }
 
   ngAfterViewInit(): void {
-    this.placeholderCleared = this.content !== '<p>Start writing...</p>';
-    this.updatePagesFromHtml(this.content);
     this.syncEditorsToHosts();
     this.pageHosts?.changes.subscribe(() => this.syncEditorsToHosts());
   }
