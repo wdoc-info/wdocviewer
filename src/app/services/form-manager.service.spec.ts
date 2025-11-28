@@ -43,6 +43,34 @@ describe('FormManagerService', () => {
     expect(link.getAttribute('href')!.startsWith('blob:')).toBeTrue();
   });
 
+  it('populates named form entries with text and file data', async () => {
+    const html = `
+      <html><body>
+        <form id="login">
+          <label for="username">username *</label>
+          <input type="text" required name="username" />
+          <label for="picture" required>picture *</label>
+          <input type="file" required name="picture" />
+        </form>
+      </body></html>
+    `;
+    const zip = new JSZip();
+    zip.file('index.html', html);
+    const folder = zip.folder('wdoc-form')!;
+    folder.file('login.json', JSON.stringify({ username: 'test', picture: 'nous deux.jpg' }));
+    folder.file('nous deux.jpg', 'imgbytes');
+
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    await service.populateFormsFromZip(zip, doc);
+
+    const username = doc.querySelector('input[name="username"]') as HTMLInputElement;
+    expect(username.value).toBe('test');
+    expect(username.getAttribute('value')).toBe('test');
+
+    const pictureLink = doc.querySelector('input[name="picture"] + a') as HTMLAnchorElement;
+    expect(pictureLink?.textContent).toBe('nous deux.jpg');
+  });
+
   it('restores checkbox and radio controls from saved data', async () => {
     const html = `
       <html><body>
@@ -101,7 +129,9 @@ describe('FormManagerService', () => {
     const revokeSpy = spyOn(URL, 'revokeObjectURL');
     const clickSpy = spyOn(HTMLAnchorElement.prototype, 'click');
 
-    await service.saveForms(container, buffer);
+    const saved = await service.saveForms(container, buffer);
+
+    expect(saved).toBeTrue();
 
     expect(clickSpy).toHaveBeenCalled();
     expect(revokeSpy).toHaveBeenCalledWith('blob:filled');
@@ -131,5 +161,28 @@ describe('FormManagerService', () => {
     expect(roles['index.html']).toBe('doc_core');
     expect(roles['wdoc-form/form1.json']).toBe('form_instance');
     expect(roles['wdoc-form/note.txt']).toBe('form_attachment');
+  });
+
+  it('blocks saving when HTML form validation fails', async () => {
+    const initialZip = new JSZip();
+    initialZip.file('index.html', '<html></html>');
+    initialZip.folder('wdoc-form');
+    const buffer = await initialZip.generateAsync({ type: 'arraybuffer' });
+
+    const container = document.createElement('div');
+    container.innerHTML = `
+      <form>
+        <input name="name" required />
+      </form>
+    `;
+
+    const createObjectUrlSpy = spyOn(URL, 'createObjectURL');
+    const clickSpy = spyOn(HTMLAnchorElement.prototype, 'click');
+
+    const saved = await service.saveForms(container, buffer);
+
+    expect(saved).toBeFalse();
+    expect(createObjectUrlSpy).not.toHaveBeenCalled();
+    expect(clickSpy).not.toHaveBeenCalled();
   });
 });

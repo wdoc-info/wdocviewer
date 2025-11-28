@@ -73,16 +73,31 @@ export class FormManagerService {
             radio.checked = radio.value === value;
           });
         } else if ('value' in control) {
-          control.value = String(value);
+          const strValue = String(value ?? '');
+          control.value = strValue;
+          if (control instanceof HTMLTextAreaElement) {
+            control.textContent = strValue;
+          } else {
+            control.setAttribute('value', strValue);
+          }
         }
       }
     }
   }
 
-  async saveForms(viewerElement: HTMLElement, originalArrayBuffer: ArrayBuffer): Promise<void> {
+  async saveForms(
+    formRoot: Document | ShadowRoot | HTMLElement,
+    originalArrayBuffer: ArrayBuffer,
+  ): Promise<boolean> {
+    const forms = Array.from(formRoot.querySelectorAll('form'));
+    for (const form of forms) {
+      if (!this.isFormValid(form)) {
+        return false;
+      }
+    }
+
     const newZip = await JSZip.loadAsync(originalArrayBuffer);
     const formsFolder = newZip.folder('wdoc-form');
-    const forms = Array.from(viewerElement.querySelectorAll('form'));
     let idx = 1;
     for (const form of forms) {
       const fd = new FormData(form as HTMLFormElement);
@@ -113,6 +128,17 @@ export class FormManagerService {
     a.download = 'filled.wdoc';
     a.click();
     URL.revokeObjectURL(a.href);
+    return true;
+  }
+
+  private isFormValid(form: HTMLFormElement): boolean {
+    if (typeof form.reportValidity === 'function') {
+      return form.reportValidity();
+    }
+    if (typeof form.checkValidity === 'function') {
+      return form.checkValidity();
+    }
+    return true;
   }
 
   private async addContentManifest(zip: JSZip): Promise<void> {

@@ -22,13 +22,27 @@ describe('TopbarComponent', () => {
     expect(component.toggleNav.emit).toHaveBeenCalled();
   });
 
-  it('emits save when save button clicked', () => {
-    component.showSave = true;
+  it('emits save form when save form button clicked', () => {
+    component.showFormSave = true;
     fixture.detectChanges();
-    spyOn(component.save, 'emit');
+    spyOn(component.saveForm, 'emit');
     const btn = fixture.nativeElement.querySelector('.topbar-save');
     btn.click();
-    expect(component.save.emit).toHaveBeenCalled();
+    expect(component.saveForm.emit).toHaveBeenCalled();
+  });
+
+  it('emits save document when save document button clicked', () => {
+    component.showDocumentSave = true;
+    fixture.detectChanges();
+    spyOn(component.saveDocument, 'emit');
+    const buttons = fixture.nativeElement.querySelectorAll(
+      '.topbar-save',
+    ) as NodeListOf<HTMLButtonElement>;
+    const docButton = Array.from(buttons).find((btn) =>
+      btn.textContent?.includes('document'),
+    );
+    docButton?.click();
+    expect(component.saveDocument.emit).toHaveBeenCalled();
   });
 
   it('emits createNewDocument when the button is clicked', () => {

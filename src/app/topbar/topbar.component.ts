@@ -17,7 +17,8 @@ import { LoadedFile } from '../services/wdoc-loader.service';
   styleUrls: ['./topbar.component.css'],
 })
 export class TopbarComponent implements OnChanges {
-  @Input() showSave = false;
+  @Input() showFormSave = false;
+  @Input() showDocumentSave = false;
   @Input() navOpen = false;
   @Input() title = 'WDOC viewer';
   @Input() zoom = 100;
@@ -26,7 +27,8 @@ export class TopbarComponent implements OnChanges {
   @Input() formAnswers: LoadedFile[] = [];
   @Input() showNewDocument = false;
   @Output() toggleNav = new EventEmitter<void>();
-  @Output() save = new EventEmitter<void>();
+  @Output() saveForm = new EventEmitter<void>();
+  @Output() saveDocument = new EventEmitter<void>();
   @Output() zoomChange = new EventEmitter<number>();
   @Output() createNewDocument = new EventEmitter<void>();
   zoomValue = '100';
@@ -51,8 +53,12 @@ export class TopbarComponent implements OnChanges {
     this.toggleNav.emit();
   }
 
-  onSave() {
-    this.save.emit();
+  onSaveForm() {
+    this.saveForm.emit();
+  }
+
+  onSaveDocument() {
+    this.saveDocument.emit();
   }
 
   onCreateNewDocument() {

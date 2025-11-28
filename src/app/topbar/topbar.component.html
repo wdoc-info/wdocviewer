@@ -98,10 +98,18 @@
     <button
       class="topbar-save"
       type="button"
-      (click)="onSave()"
-      [hidden]="!showSave"
+      (click)="onSaveForm()"
+      [hidden]="!showFormSave"
     >
-      Save
+      Save form
+    </button>
+    <button
+      class="topbar-save"
+      type="button"
+      (click)="onSaveDocument()"
+      [hidden]="!showDocumentSave"
+    >
+      Save document
     </button>
   </div>
 </header>
