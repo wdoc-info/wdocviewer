@@ -9,7 +9,8 @@ import {
   OnChanges,
   SimpleChanges,
   Output,
-  ViewChild,
+  QueryList,
+  ViewChildren,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Editor } from '@tiptap/core';
@@ -29,31 +30,32 @@ export class DocumentEditorComponent
 {
   @Input() content = '<p>Start writing...</p>';
   @Output() contentChange = new EventEmitter<string>();
-  @ViewChild('editorHost') editorHost?: ElementRef<HTMLElement>;
+  @ViewChildren('pageHost') pageHosts?: QueryList<ElementRef<HTMLElement>>;
 
-  editor?: Editor;
+  private editors: Editor[] = [];
   private pendingExternalUpdate = false;
   pageHeight = 1122;
   pageWidth = 793.8;
   pagePadding = 20;
   private pageGap = 20;
-  pageCount = 1;
-  private resizeObserver?: ResizeObserver;
+  pageContents: string[] = [];
+  private resizeObservers: ResizeObserver[] = [];
   private paginationRaf = 0;
   private placeholderCleared = false;
 
   ngOnChanges(changes: SimpleChanges): void {
     if (
       changes['content'] &&
-      this.editor &&
+      this.editors.length &&
       typeof changes['content'].currentValue === 'string'
     ) {
-      const currentHtml = this.editor.getHTML();
+      const currentHtml = this.editors
+        .map((editor) => editor.getHTML())
+        .join('');
       if (currentHtml !== this.content) {
         this.pendingExternalUpdate = true;
-        this.editor.commands.setContent(this.content, { emitUpdate: false });
+        this.updatePagesFromHtml(this.content);
         queueMicrotask(() => (this.pendingExternalUpdate = false));
-        this.schedulePaginationUpdate();
       }
     }
 
@@ -64,40 +66,16 @@ export class DocumentEditorComponent
 
   ngAfterViewInit(): void {
     this.placeholderCleared = this.content !== '<p>Start writing...</p>';
-
-    if (this.editorHost) {
-      this.editor = new Editor({
-        element: this.editorHost.nativeElement,
-        extensions: [StarterKit],
-        content: this.content,
-        onUpdate: ({ editor }: { editor: Editor }) => {
-          if (this.pendingExternalUpdate) {
-            return;
-          }
-          this.contentChange.emit(editor.getHTML());
-          this.schedulePaginationUpdate();
-        },
-        onFocus: ({ editor }: { editor: Editor }) => {
-          if (this.placeholderCleared) {
-            return;
-          }
-
-          const currentHtml = editor.getHTML().trim();
-          if (currentHtml === '<p>Start writing...</p>') {
-            this.placeholderCleared = true;
-            editor.commands.setContent('<p></p>');
-            this.schedulePaginationUpdate();
-          }
-        },
-      });
-    }
-    this.observeEditorHeight();
-    this.schedulePaginationUpdate();
+    this.updatePagesFromHtml(this.content);
+    this.syncEditorsToHosts();
+    this.pageHosts?.changes.subscribe(() => this.syncEditorsToHosts());
   }
 
   ngOnDestroy(): void {
-    this.editor?.destroy();
-    this.resizeObserver?.disconnect();
+    this.editors.forEach((editor) => editor.destroy());
+    this.editors = [];
+    this.resizeObservers.forEach((observer) => observer.disconnect());
+    this.resizeObservers = [];
     if (this.paginationRaf) {
       cancelAnimationFrame(this.paginationRaf);
       this.paginationRaf = 0;
@@ -105,43 +83,27 @@ export class DocumentEditorComponent
   }
 
   toggleBold() {
-    this.editor?.chain().focus().toggleBold().run();
+    this.editors[0]?.chain().focus().toggleBold().run();
   }
 
   toggleItalic() {
-    this.editor?.chain().focus().toggleItalic().run();
+    this.editors[0]?.chain().focus().toggleItalic().run();
   }
 
   toggleBulletList() {
-    this.editor?.chain().focus().toggleBulletList().run();
+    this.editors[0]?.chain().focus().toggleBulletList().run();
   }
 
   toggleOrderedList() {
-    this.editor?.chain().focus().toggleOrderedList().run();
+    this.editors[0]?.chain().focus().toggleOrderedList().run();
   }
 
   setHeading(level: Level) {
-    this.editor?.chain().focus().toggleHeading({ level }).run();
+    this.editors[0]?.chain().focus().toggleHeading({ level }).run();
   }
 
   isActive(name: string, attrs?: Record<string, unknown>) {
-    return this.editor?.isActive(name, attrs) ?? false;
-  }
-
-  get pageCountArray(): number[] {
-    return Array.from({ length: this.pageCount }, (_v, i) => i);
-  }
-
-  get pageStackHeight(): number {
-    return this.pageCount * (this.pageHeight + this.pageGap);
-  }
-
-  private observeEditorHeight(): void {
-    if (!this.editorHost?.nativeElement || typeof ResizeObserver === 'undefined') {
-      return;
-    }
-    this.resizeObserver = new ResizeObserver(() => this.schedulePaginationUpdate());
-    this.resizeObserver.observe(this.editorHost.nativeElement);
+    return this.editors[0]?.isActive(name, attrs) ?? false;
   }
 
   private schedulePaginationUpdate(): void {
@@ -155,21 +117,143 @@ export class DocumentEditorComponent
   }
 
   private updatePagination(): void {
-    const host = this.editorHost?.nativeElement;
-    if (!host) {
+    if (!this.editors.length) {
       return;
     }
 
-    const usableHeight = this.pageHeight - this.pagePadding * 2;
-    const totalHeight = host.scrollHeight;
-    const pageStride = usableHeight + this.pageGap;
-    const nextPageCount = Math.max(
-      1,
-      Math.ceil((totalHeight + this.pageGap) / pageStride),
-    );
+    const mergedHtml = this.editors.map((editor) => editor.getHTML()).join('');
+    this.updatePagesFromHtml(mergedHtml);
+  }
 
-    if (nextPageCount !== this.pageCount) {
-      this.pageCount = nextPageCount;
+  private updatePagesFromHtml(html: string): void {
+    this.pageContents = this.paginateHtml(html);
+    requestAnimationFrame(() => this.syncEditorsToHosts());
+  }
+
+  private paginateHtml(html: string): string[] {
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.visibility = 'hidden';
+    container.style.pointerEvents = 'none';
+    container.style.width = `${this.pageWidth - this.pagePadding * 2}px`;
+    container.style.padding = '0';
+    container.style.boxSizing = 'border-box';
+    container.style.lineHeight = '1.6';
+    container.style.fontSize = '16px';
+    container.style.fontFamily = 'inherit';
+    container.innerHTML = html || '<p></p>';
+
+    document.body.appendChild(container);
+
+    const pages: string[] = [];
+    const usableHeight = this.pageHeight - this.pagePadding * 2;
+    let currentPage = document.createElement('div');
+    currentPage.style.width = '100%';
+    pages.push('');
+
+    const moveToNewPage = (node: Node) => {
+      const newPage = document.createElement('div');
+      newPage.appendChild(node.cloneNode(true));
+      pages.push(newPage.innerHTML);
+      currentPage = newPage;
+    };
+
+    Array.from(container.childNodes).forEach((node) => {
+      currentPage.appendChild(node.cloneNode(true));
+      container.innerHTML = currentPage.innerHTML;
+
+      if (container.scrollHeight > usableHeight) {
+        currentPage.removeChild(currentPage.lastChild as ChildNode);
+        pages[pages.length - 1] = currentPage.innerHTML;
+        moveToNewPage(node);
+        container.innerHTML = currentPage.innerHTML;
+      } else {
+        pages[pages.length - 1] = currentPage.innerHTML;
+      }
+    });
+
+    document.body.removeChild(container);
+
+    return pages.length ? pages : ['<p></p>'];
+  }
+
+  private syncEditorsToHosts(): void {
+    if (!this.pageHosts) {
+      return;
     }
+
+    const hosts = this.pageHosts.toArray();
+
+    // Ensure editor instances match page count
+    while (this.editors.length < this.pageContents.length && hosts[this.editors.length]) {
+      const index = this.editors.length;
+      const host = hosts[index].nativeElement;
+      const editor = this.createEditor(host, this.pageContents[index], index);
+      this.editors.push(editor);
+      this.observeEditorHeight(host);
+    }
+
+    // Remove extra editors if pagination shrank
+    while (this.editors.length > this.pageContents.length) {
+      const editor = this.editors.pop();
+      editor?.destroy();
+      const observer = this.resizeObservers.pop();
+      observer?.disconnect();
+    }
+
+    // Update host elements if they changed
+    this.editors.forEach((editor, index) => {
+      const host = hosts[index]?.nativeElement;
+      if (host && editor.options.element !== host) {
+        editor.setOptions({ element: host });
+        host.replaceChildren(...Array.from(editor.view.dom.childNodes));
+      }
+      if (editor.getHTML() !== this.pageContents[index]) {
+        this.pendingExternalUpdate = true;
+        editor.commands.setContent(this.pageContents[index], { emitUpdate: false });
+        queueMicrotask(() => (this.pendingExternalUpdate = false));
+      }
+    });
+  }
+
+  private createEditor(element: HTMLElement, content: string, index: number): Editor {
+    return new Editor({
+      element,
+      extensions: [StarterKit],
+      content,
+      onUpdate: ({ editor }) => {
+        if (this.pendingExternalUpdate) {
+          return;
+        }
+
+        const mergedHtml = this.editors
+          .map((inst, idx) => (idx === index ? editor.getHTML() : inst.getHTML()))
+          .join('');
+
+        this.contentChange.emit(mergedHtml);
+        this.updatePagesFromHtml(mergedHtml);
+      },
+      onFocus: ({ editor }) => {
+        if (this.placeholderCleared || index !== 0) {
+          return;
+        }
+
+        const currentHtml = editor.getHTML().trim();
+        if (currentHtml === '<p>Start writing...</p>') {
+          this.placeholderCleared = true;
+          editor.commands.setContent('<p></p>');
+          this.schedulePaginationUpdate();
+        }
+      },
+    });
+  }
+
+  private observeEditorHeight(host: HTMLElement): void {
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const observer = new ResizeObserver(() => this.schedulePaginationUpdate());
+    observer.observe(host);
+    this.resizeObservers.push(observer);
   }
 }

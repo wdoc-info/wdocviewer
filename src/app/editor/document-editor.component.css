@@ -51,34 +51,18 @@
 .page-list {
   position: relative;
   margin: 0 auto;
-}
-
-.page-stack {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  pointer-events: none;
-}
-
-.page-stack wdoc-page {
-  margin: 0 0 20px 0;
-  background: #fff;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-  border-radius: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  width: 100%;
-  height: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .page-shell {
   position: relative;
-  z-index: 1;
   background: #fff;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
   border-radius: 8px;
   border: 1px solid rgba(0, 0, 0, 0.06);
   box-sizing: border-box;
-  margin-bottom: 20px;
 }
 
 .editor-surface {
@@ -95,6 +79,12 @@
 }
 
 .ProseMirror,
-.ProseMirror-focused {
-  outline: none;
+.ProseMirror-focused,
+.editor-wrapper .tiptap.ProseMirror:focus-visible {
+  outline: none !important;
+  box-shadow: none;
+}
+
+.editor-surface:focus-visible {
+  outline: none !important;
 }
