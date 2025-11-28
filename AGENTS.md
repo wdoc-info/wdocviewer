@@ -49,13 +49,6 @@ The viewer does **client-side pagination**. It does not use standard CSS print m
 
 ## 4. Coding Standards & Rules
 
-### DOM & Security
-
-- **Strict Sanitization:** Never bypass `DOMPurify` unless absolutely necessary. Scripts and Iframes are strictly forbidden.
-- **Asset Handling:**
-  - **Current:** Images are converted to URL.createObjectURL(blob).
-- **External Resources:** External images (`http://...`) are blocked by default. They require user confirmation via `ExternalImageDialogComponent`.
-
 ### Angular Patterns
 
 - **Standalone:** All components must be `standalone: true`.
@@ -77,6 +70,7 @@ The viewer injects specific custom elements. Do not remove these from sanitizati
 - Use `fakeAsync` and `tick()` for timing-dependent logic (e.g., zoom debounce, layout calc).
 - Mock `HttpClient` and `MatDialog` using `Jasmine.createSpyObj`.
 - **Do not** test private methods directly; test the public side-effects.
+- For code coverage be at least 1% over the limit to ensure merge successfull and still meeting coverage theshold.
 
 ## 6. Common Pitfalls for Agents
 
