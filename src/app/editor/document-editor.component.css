@@ -35,17 +35,47 @@
   border-color: #312e81;
 }
 
-.editor-surface {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 18px 20px;
-  min-height: 420px;
-  line-height: 1.6;
-  font-size: 16px;
+.editor-container {
+  background: transparent;
+  padding: 12px 0 0;
+  height: auto;
+  min-height: calc(100vh - 200px);
 }
 
-.editor-surface:focus-within {
-  outline: 2px solid #4338ca;
-  outline-offset: 3px;
+.editor-content {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.page-list {
+  position: relative;
+  margin: 0 auto;
+}
+
+.page-stack {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  pointer-events: none;
+}
+
+.page-stack wdoc-page {
+  margin: 0 0 20px 0;
+}
+
+.editor-surface {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  border: none;
+  line-height: 1.6;
+  font-size: 16px;
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+.ProseMirror,
+.ProseMirror-focused {
+  outline: none;
 }

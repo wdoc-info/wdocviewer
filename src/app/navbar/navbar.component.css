@@ -64,6 +64,11 @@
   font-weight: 600;
 }
 
+.nav-btn.primary {
+  background-color: #e4efff;
+  color: #0f172a;
+}
+
 .auth-btn {
   width: 100%;
   display: flex;

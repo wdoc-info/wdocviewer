@@ -1,6 +1,7 @@
 import {
   AfterViewInit,
   Component,
+  CUSTOM_ELEMENTS_SCHEMA,
   ElementRef,
   EventEmitter,
   Input,
@@ -21,6 +22,7 @@ import { Level } from '@tiptap/extension-heading';
   imports: [CommonModule],
   templateUrl: './document-editor.component.html',
   styleUrls: ['./document-editor.component.css'],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class DocumentEditorComponent
   implements AfterViewInit, OnDestroy, OnChanges
@@ -31,6 +33,13 @@ export class DocumentEditorComponent
 
   editor?: Editor;
   private pendingExternalUpdate = false;
+  pageHeight = 1122;
+  pageWidth = 793.8;
+  pagePadding = 20;
+  private pageGap = 20;
+  pageCount = 1;
+  private resizeObserver?: ResizeObserver;
+  private paginationRaf = 0;
 
   ngOnChanges(changes: SimpleChanges): void {
     if (
@@ -43,6 +52,7 @@ export class DocumentEditorComponent
         this.pendingExternalUpdate = true;
         this.editor.commands.setContent(this.content, { emitUpdate: false });
         queueMicrotask(() => (this.pendingExternalUpdate = false));
+        this.schedulePaginationUpdate();
       }
     }
   }
@@ -53,18 +63,26 @@ export class DocumentEditorComponent
         element: this.editorHost.nativeElement,
         extensions: [StarterKit],
         content: this.content,
-        onUpdate: ({ editor }) => {
+        onUpdate: ({ editor }: { editor: Editor }) => {
           if (this.pendingExternalUpdate) {
             return;
           }
           this.contentChange.emit(editor.getHTML());
+          this.schedulePaginationUpdate();
         },
       });
     }
+    this.observeEditorHeight();
+    this.schedulePaginationUpdate();
   }
 
   ngOnDestroy(): void {
     this.editor?.destroy();
+    this.resizeObserver?.disconnect();
+    if (this.paginationRaf) {
+      cancelAnimationFrame(this.paginationRaf);
+      this.paginationRaf = 0;
+    }
   }
 
   toggleBold() {
@@ -89,5 +107,50 @@ export class DocumentEditorComponent
 
   isActive(name: string, attrs?: Record<string, unknown>) {
     return this.editor?.isActive(name, attrs) ?? false;
+  }
+
+  get pageCountArray(): number[] {
+    return Array.from({ length: this.pageCount }, (_v, i) => i);
+  }
+
+  get pageStackHeight(): number {
+    return this.pageCount * (this.pageHeight + this.pageGap);
+  }
+
+  private observeEditorHeight(): void {
+    if (!this.editorHost?.nativeElement || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    this.resizeObserver = new ResizeObserver(() => this.schedulePaginationUpdate());
+    this.resizeObserver.observe(this.editorHost.nativeElement);
+  }
+
+  private schedulePaginationUpdate(): void {
+    if (this.paginationRaf) {
+      cancelAnimationFrame(this.paginationRaf);
+    }
+    this.paginationRaf = requestAnimationFrame(() => {
+      this.paginationRaf = 0;
+      this.updatePagination();
+    });
+  }
+
+  private updatePagination(): void {
+    const host = this.editorHost?.nativeElement;
+    if (!host) {
+      return;
+    }
+
+    const usableHeight = this.pageHeight - this.pagePadding * 2;
+    const totalHeight = host.scrollHeight - this.pagePadding * 2;
+    const pageStride = usableHeight + this.pageGap;
+    const nextPageCount = Math.max(
+      1,
+      Math.ceil((totalHeight + this.pageGap) / pageStride),
+    );
+
+    if (nextPageCount !== this.pageCount) {
+      this.pageCount = nextPageCount;
+    }
   }
 }

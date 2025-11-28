@@ -19,5 +19,29 @@
       Numbered list
     </button>
   </div>
-  <div #editorHost class="editor-surface" aria-label="Document content"></div>
+
+  <wdoc-container class="editor-container">
+    <wdoc-content class="editor-content">
+      <div
+        class="page-list"
+        [style.width.px]="pageWidth"
+        [style.minHeight.px]="pageStackHeight"
+      >
+        <div class="page-stack" [style.height.px]="pageStackHeight" aria-hidden="true">
+          @for (page of pageCountArray; track page) {
+            <wdoc-page></wdoc-page>
+          }
+        </div>
+
+        <div
+          #editorHost
+          class="editor-surface"
+          aria-label="Document content"
+          [style.width.px]="pageWidth"
+          [style.minHeight.px]="pageHeight"
+          [style.padding.px]="pagePadding"
+        ></div>
+      </div>
+    </wdoc-content>
+  </wdoc-container>
 </div>
