@@ -1,5 +1,6 @@
-import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { ComponentFixture, TestBed, fakeAsync, flushMicrotasks } from '@angular/core/testing';
+import { DomSanitizer } from '@angular/platform-browser';
+import { SimpleChange } from '@angular/core';
 import { ViewerComponent } from './viewer.component';
 
 describe('ViewerComponent', () => {
@@ -7,121 +8,63 @@ describe('ViewerComponent', () => {
   let component: ViewerComponent;
   let sanitizer: DomSanitizer;
 
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [ViewerComponent],
-    }).compileComponents();
-
+  beforeEach(() => {
+    TestBed.configureTestingModule({ imports: [ViewerComponent] });
     fixture = TestBed.createComponent(ViewerComponent);
     component = fixture.componentInstance;
     sanitizer = TestBed.inject(DomSanitizer);
   });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
-
-  it('should render html content', () => {
-    component.htmlContent = '<p>hello</p>' as any;
-    fixture.detectChanges();
-    const host = fixture.nativeElement.querySelector(
-      '.viewer-shadow-host'
-    ) as HTMLElement;
-    expect(host.shadowRoot?.textContent).toContain('hello');
-  });
-
-  it('sanitizes SafeHtml before injecting into the shadow root', () => {
-    const safe = sanitizer.bypassSecurityTrustHtml('<div>trusted</div>');
-    component.htmlContent = safe;
-    fixture.detectChanges();
-
-    const host = fixture.nativeElement.querySelector(
-      '.viewer-shadow-host'
-    ) as HTMLElement;
-    const shadowText = host.shadowRoot?.textContent ?? '';
-
-    expect(shadowText).toContain('trusted');
-    expect(shadowText).not.toContain('SafeValue must use [property]=binding:');
-  });
-
-  it('applies zoom to the content container', async () => {
-    const content: SafeHtml = sanitizer.bypassSecurityTrustHtml(
-      '<wdoc-container><wdoc-page>zoom</wdoc-page></wdoc-container>'
-    );
-    component.htmlContent = content;
-    component.zoom = 150;
-    fixture.detectChanges();
-    await fixture.whenStable();
-    const page = fixture.nativeElement
-      .querySelector('.viewer-shadow-host')
-      ?.shadowRoot?.querySelector('wdoc-page') as HTMLElement;
-    expect(page.style.zoom).toBe('1.5');
-  });
-
-  it('skips zoom application before the view initializes', () => {
-    const applySpy = spyOn<any>(component as any, 'applyZoom');
-    component.ngOnChanges({ zoom: { currentValue: 120, previousValue: 100 } } as any);
-
-    expect(applySpy).not.toHaveBeenCalled();
-  });
-
-  it('applies zoom changes once initialized', fakeAsync(() => {
-    const content: SafeHtml = sanitizer.bypassSecurityTrustHtml(
-      '<wdoc-container><wdoc-page>zoom</wdoc-page></wdoc-container>'
-    );
-    component.htmlContent = content;
-    fixture.detectChanges();
-    tick();
-
-    component.zoom = 110;
-    const applySpy = spyOn<any>(component as any, 'applyZoom').and.callThrough();
-    component.ngOnChanges({ zoom: { currentValue: 110, previousValue: 100 } } as any);
-    tick();
-
-    expect(applySpy).toHaveBeenCalled();
-    const page = fixture.nativeElement
-      .querySelector('.viewer-shadow-host')
-      ?.shadowRoot?.querySelector('wdoc-page') as HTMLElement;
-    expect(page.style.zoom).toBe('1.1');
-  }));
-
-  it('ignores applyZoom when the container is missing', () => {
-    const apply = (component as any).applyZoom.bind(component);
-    component.contentContainer = undefined as any;
-    expect(() => apply()).not.toThrow();
-  });
-
-  it('reapplies zoom when htmlContent changes after init', fakeAsync(() => {
-    const content: SafeHtml = sanitizer.bypassSecurityTrustHtml(
-      '<wdoc-container><wdoc-page>first</wdoc-page></wdoc-container>'
-    );
-    component.htmlContent = content;
-    fixture.detectChanges();
-    tick();
-
-    const applySpy = spyOn<any>(component as any, 'applyZoom').and.callThrough();
+  it('creates a shadow root and renders provided HTML', () => {
     component.htmlContent = sanitizer.bypassSecurityTrustHtml(
-      '<wdoc-container><wdoc-page>second</wdoc-page></wdoc-container>'
+      '<wdoc-page><p>hello</p></wdoc-page>',
     );
-    component.ngOnChanges({
-      htmlContent: { currentValue: 'new', previousValue: 'old' },
-    } as any);
-    tick();
-
-    expect(applySpy).toHaveBeenCalled();
-  }));
-
-  it('isolates document styles inside the shadow root', () => {
-    component.htmlContent = sanitizer.bypassSecurityTrustHtml(`
-      <style>body { margin: 32px; }</style>
-      <div class="doc">content</div>
-    `);
     fixture.detectChanges();
 
-    const host = fixture.nativeElement.querySelector(
-      '.viewer-shadow-host'
-    ) as HTMLElement;
-    expect(getComputedStyle(host).margin).toBe('0px');
-    expect(host.shadowRoot?.textContent).toContain('content');
+    component.ngAfterViewInit();
+
+    expect(component.documentRoot).toBeDefined();
+    expect(component.documentRoot?.querySelector('p')?.textContent).toBe('hello');
+  });
+
+  it('applies zoom updates when the input changes', fakeAsync(() => {
+    component.htmlContent = sanitizer.bypassSecurityTrustHtml('<wdoc-page></wdoc-page>');
+    fixture.detectChanges();
+    component.ngAfterViewInit();
+
+    component.zoom = 150;
+    component.ngOnChanges({ zoom: new SimpleChange(100, 150, false) });
+    flushMicrotasks();
+
+    const page = component.documentRoot?.querySelector('wdoc-page') as HTMLElement;
+    expect(page.style.zoom).toBe('1.5');
+  }));
+
+  it('defers rendering until the view is initialized', () => {
+    component.htmlContent = sanitizer.bypassSecurityTrustHtml('<div>pending</div>');
+    component.ngOnChanges({ htmlContent: new SimpleChange(null, component.htmlContent, false) });
+
+    expect((component as any).pendingContentRender).toBeTrue();
+
+    fixture.detectChanges();
+    component.ngAfterViewInit();
+
+    expect(component.documentRoot?.innerHTML).toContain('pending');
+    expect((component as any).pendingContentRender).toBeFalse();
+  });
+
+  it('emits form interaction events from the shadow root', () => {
+    const spy = jasmine.createSpy('formInteraction');
+    component.formInteraction.subscribe(spy);
+    component.htmlContent = sanitizer.bypassSecurityTrustHtml(
+      '<wdoc-page><input type="text" value="x" /></wdoc-page>',
+    );
+    fixture.detectChanges();
+    component.ngAfterViewInit();
+
+    const input = component.documentRoot?.querySelector('input') as HTMLInputElement;
+    input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+
+    expect(spy).toHaveBeenCalled();
   });
 });

@@ -118,6 +118,41 @@ describe('splitHtmlToPages', () => {
     const first = await iterator.next();
     expect(first.value).toBeDefined();
   });
+
+  it('splits long text nodes across multiple pages', async () => {
+    const container = document.createElement('div');
+    Object.defineProperty(container, 'clientHeight', {
+      get() {
+        return Math.ceil((container.textContent?.length ?? 0) / 3);
+      },
+    });
+
+    const pages: string[] = [];
+    for await (const page of splitHtmlToPages('<p>abcdefghij</p>', {
+      container,
+      pageHeight: 1,
+      maxNumberOfPages: 2,
+    })) {
+      pages.push(page);
+    }
+
+    expect(pages.length).toBe(2);
+  });
+
+  it('creates and removes a temporary container when none is supplied', async () => {
+    const pages: string[] = [];
+
+    for await (const page of splitHtmlToPages('<p>single</p>', {
+      classes: ['temp-marker'],
+      pageHeight: 2,
+      maxNumberOfPages: 1,
+    })) {
+      pages.push(page);
+    }
+
+    expect(pages.length).toBeGreaterThan(0);
+    expect(document.querySelector('.temp-marker')).toBeNull();
+  });
 });
 
 describe('HtmlPageSplitter', () => {
