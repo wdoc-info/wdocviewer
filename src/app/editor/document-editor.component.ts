@@ -42,6 +42,7 @@ export class DocumentEditorComponent
   private resizeObservers: ResizeObserver[] = [];
   private paginationRaf = 0;
   private placeholderCleared = false;
+  private pendingSelectionOffset: number | null = null;
 
   ngOnChanges(changes: SimpleChanges): void {
     if (
@@ -214,6 +215,11 @@ export class DocumentEditorComponent
         queueMicrotask(() => (this.pendingExternalUpdate = false));
       }
     });
+
+    if (this.pendingSelectionOffset !== null) {
+      this.applySelectionOffset(this.pendingSelectionOffset);
+      this.pendingSelectionOffset = null;
+    }
   }
 
   private createEditor(element: HTMLElement, content: string, index: number): Editor {
@@ -226,6 +232,7 @@ export class DocumentEditorComponent
           return;
         }
 
+        this.pendingSelectionOffset = this.calculateSelectionOffset(index, editor);
         const mergedHtml = this.editors
           .map((inst, idx) => (idx === index ? editor.getHTML() : inst.getHTML()))
           .join('');
@@ -248,6 +255,23 @@ export class DocumentEditorComponent
     });
   }
 
+  private calculateSelectionOffset(index: number, editor: Editor): number {
+    const selection = editor.state.selection;
+    const offsetInsideEditor = Math.max(0, selection.from - 1);
+    let offset = offsetInsideEditor;
+
+    for (let i = 0; i < index; i++) {
+      const size = this.getEditorContentSize(this.editors[i]);
+      offset += size;
+    }
+
+    return offset;
+  }
+
+  private getEditorContentSize(editor: Editor | undefined): number {
+    return editor?.state.doc.content.size ?? 0;
+  }
+
   private observeEditorHeight(host: HTMLElement): void {
     if (typeof ResizeObserver === 'undefined') {
       return;
@@ -255,5 +279,29 @@ export class DocumentEditorComponent
     const observer = new ResizeObserver(() => this.schedulePaginationUpdate());
     observer.observe(host);
     this.resizeObservers.push(observer);
+  }
+
+  private applySelectionOffset(offset: number): void {
+    let remaining = offset;
+
+    for (let i = 0; i < this.editors.length; i++) {
+      const editor = this.editors[i];
+      const size = this.getEditorContentSize(editor);
+
+      if (remaining < size) {
+        const pos = Math.min(size, Math.max(1, remaining + 1));
+        editor.chain().focus().setTextSelection(pos).run();
+        return;
+      }
+
+      remaining -= size;
+    }
+
+    const lastEditor = this.editors[this.editors.length - 1];
+    if (lastEditor) {
+      const size = this.getEditorContentSize(lastEditor);
+      const pos = Math.min(size, Math.max(1, size));
+      lastEditor.chain().focus().setTextSelection(pos).run();
+    }
   }
 }
