@@ -259,15 +259,21 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     if (
       !this.originalArrayBuffer ||
       !this.viewer ||
-      !this.viewer.nativeElement
+      (!this.viewer.documentRoot && !this.viewer.nativeElement)
     ) {
       return;
     }
-    await this.formManagerService.saveForms(
-      this.viewer.nativeElement,
+    const formRoot = this.viewer.documentRoot ?? this.viewer.nativeElement;
+    if (!formRoot) {
+      return;
+    }
+    const saved = await this.formManagerService.saveForms(
+      formRoot,
       this.originalArrayBuffer
     );
-    this.showSave = false;
+    if (saved) {
+      this.showSave = false;
+    }
   }
 
   private containsFiles(event: DragEvent): boolean {

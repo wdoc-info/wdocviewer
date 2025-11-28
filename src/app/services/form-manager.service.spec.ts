@@ -101,7 +101,9 @@ describe('FormManagerService', () => {
     const revokeSpy = spyOn(URL, 'revokeObjectURL');
     const clickSpy = spyOn(HTMLAnchorElement.prototype, 'click');
 
-    await service.saveForms(container, buffer);
+    const saved = await service.saveForms(container, buffer);
+
+    expect(saved).toBeTrue();
 
     expect(clickSpy).toHaveBeenCalled();
     expect(revokeSpy).toHaveBeenCalledWith('blob:filled');
@@ -131,5 +133,28 @@ describe('FormManagerService', () => {
     expect(roles['index.html']).toBe('doc_core');
     expect(roles['wdoc-form/form1.json']).toBe('form_instance');
     expect(roles['wdoc-form/note.txt']).toBe('form_attachment');
+  });
+
+  it('blocks saving when HTML form validation fails', async () => {
+    const initialZip = new JSZip();
+    initialZip.file('index.html', '<html></html>');
+    initialZip.folder('wdoc-form');
+    const buffer = await initialZip.generateAsync({ type: 'arraybuffer' });
+
+    const container = document.createElement('div');
+    container.innerHTML = `
+      <form>
+        <input name="name" required />
+      </form>
+    `;
+
+    const createObjectUrlSpy = spyOn(URL, 'createObjectURL');
+    const clickSpy = spyOn(HTMLAnchorElement.prototype, 'click');
+
+    const saved = await service.saveForms(container, buffer);
+
+    expect(saved).toBeFalse();
+    expect(createObjectUrlSpy).not.toHaveBeenCalled();
+    expect(clickSpy).not.toHaveBeenCalled();
   });
 });

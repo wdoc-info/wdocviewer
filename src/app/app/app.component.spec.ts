@@ -155,7 +155,7 @@ describe('AppComponent', () => {
     (app as any).originalArrayBuffer = buffer;
     const container = document.createElement('div');
     (app as any).viewer = { nativeElement: container } as any;
-    formManager.saveForms.and.resolveTo();
+    formManager.saveForms.and.resolveTo(true);
 
     await app.onSaveForms();
 
