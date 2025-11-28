@@ -1,14 +1,18 @@
 import { Injectable } from '@angular/core';
 import JSZip from 'jszip';
+import { APP_VERSION } from '../config/app.config';
 import {
   ManifestMetaOverrides,
   WdocManifest,
   generateManifest,
   serializeManifest,
 } from './manifest-builder';
+import { AuthService } from './auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class FormManagerService {
+  constructor(private authService: AuthService) {}
+
   async populateFormsFromZip(zip: JSZip, doc: Document): Promise<void> {
     const formsFolder = zip.folder('wdoc-form');
     if (!formsFolder) {
@@ -152,7 +156,18 @@ export class FormManagerService {
 
   private async addManifest(zip: JSZip): Promise<void> {
     const manifestMeta = await this.extractExistingMeta(zip);
-    const manifest = await generateManifest(zip, manifestMeta);
+    const creator = this.authService.getCurrentUserEmail();
+    const mergedMeta: ManifestMetaOverrides = {
+      ...manifestMeta,
+      appVersion: APP_VERSION,
+    };
+    if (creator) {
+      mergedMeta.creator = creator;
+    } else {
+      delete mergedMeta.creator;
+    }
+
+    const manifest = await generateManifest(zip, mergedMeta);
     zip.remove('content_manifest.json');
     zip.file('manifest.json', serializeManifest(manifest));
   }

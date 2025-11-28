@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import { APP_VERSION } from '../config/app.config';
 import { WdocLoaderService } from './wdoc-loader.service';
 
 export interface ManifestSection {
@@ -11,8 +12,8 @@ export interface ManifestSection {
 export interface WdocManifest {
   meta: {
     docTitle: string;
-    creator: string;
-    appVersion?: string;
+    creator?: string;
+    appVersion: string;
     creationDate: string;
     lastUpdateDate: string;
   };
@@ -58,10 +59,12 @@ export async function generateManifest(
 
   const baseMeta = {
     docTitle: metaOverrides?.docTitle ?? 'WDOC document',
-    creator: metaOverrides?.creator ?? 'wdoc-webapp',
+    ...(metaOverrides?.creator ? { creator: metaOverrides.creator } : {}),
     creationDate: metaOverrides?.creationDate ?? now,
-    appVersion: metaOverrides?.appVersion,
-  } satisfies Omit<WdocManifest['meta'], 'lastUpdateDate'>;
+    appVersion: metaOverrides?.appVersion ?? APP_VERSION,
+  } satisfies Omit<WdocManifest['meta'], 'lastUpdateDate' | 'creator'> & {
+    creator?: string;
+  };
 
   return {
     meta: {

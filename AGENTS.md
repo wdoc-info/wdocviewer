@@ -63,6 +63,11 @@ The viewer injects specific custom elements. Do not remove these from sanitizati
 - `wdoc-header`, `wdoc-footer`
 - `wdoc-barcode` (rendered dynamically via service).
 
+### Manifest rules
+
+- Use the shared `APP_VERSION` constant (`src/app/config/app.config.ts`) when writing `manifest.json` and surface it under `meta.appVersion`.
+- Only set `meta.creator` when an authenticated user email is available; omit the field entirely otherwise.
+
 ## 5. Testing Guidelines
 
 ### Unit Tests (Jasmine)

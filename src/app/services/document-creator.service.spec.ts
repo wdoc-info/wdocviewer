@@ -1,13 +1,23 @@
 import { TestBed } from '@angular/core/testing';
 import JSZip from 'jszip';
+import { APP_VERSION } from '../config/app.config';
+import { AuthService } from './auth.service';
 import { DocumentCreatorService } from './document-creator.service';
 import { WdocManifest } from './manifest-builder';
 
 describe('DocumentCreatorService', () => {
   let service: DocumentCreatorService;
+  let authService: jasmine.SpyObj<AuthService>;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    authService = jasmine.createSpyObj<AuthService>('AuthService', [
+      'getCurrentUserEmail',
+    ]);
+    authService.getCurrentUserEmail.and.returnValue('author@example.com');
+
+    TestBed.configureTestingModule({
+      providers: [{ provide: AuthService, useValue: authService }],
+    });
     service = TestBed.inject(DocumentCreatorService);
   });
 
@@ -27,6 +37,8 @@ describe('DocumentCreatorService', () => {
     ) as WdocManifest;
     expect(manifestJson.content.files['index.html']).toBeDefined();
     expect(manifestJson.content.hashAlgorithm).toBe('sha256');
+    expect(manifestJson.meta.appVersion).toBe(APP_VERSION);
+    expect(manifestJson.meta.creator).toBe('author@example.com');
   });
 
   it('scopes default styles to the document wrapper', async () => {
@@ -66,5 +78,18 @@ describe('DocumentCreatorService', () => {
     expect(
       manifestJson.runtime.forms['default'].files['wdoc-form/form-1.json'],
     ).toBeDefined();
+  });
+
+  it('omits creator when no user session is available', async () => {
+    authService.getCurrentUserEmail.and.returnValue(null);
+
+    const blob = await service.buildWdocBlob('<p>Draft</p>');
+    const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+    const manifestJson = JSON.parse(
+      await zip.file('manifest.json')!.async('text'),
+    ) as WdocManifest;
+
+    expect(manifestJson.meta.creator).toBeUndefined();
+    expect(manifestJson.meta.appVersion).toBe(APP_VERSION);
   });
 });

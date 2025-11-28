@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import JSZip from 'jszip';
+import { APP_VERSION } from '../config/app.config';
+import { AuthService } from './auth.service';
 import { FormManagerService } from './form-manager.service';
 import { WdocLoaderService } from './wdoc-loader.service';
 
@@ -10,9 +12,17 @@ interface FormDriveEntry {
 
 describe('FormManagerService', () => {
   let service: FormManagerService;
+  let authService: jasmine.SpyObj<AuthService>;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    authService = jasmine.createSpyObj<AuthService>('AuthService', [
+      'getCurrentUserEmail',
+    ]);
+    authService.getCurrentUserEmail.and.returnValue('form@example.com');
+
+    TestBed.configureTestingModule({
+      providers: [{ provide: AuthService, useValue: authService }],
+    });
     service = TestBed.inject(FormManagerService);
   });
 
@@ -155,6 +165,8 @@ describe('FormManagerService', () => {
     ) as any;
 
     expect(manifest.content.files['index.html']).toBeDefined();
+    expect(manifest.meta.appVersion).toBe(APP_VERSION);
+    expect(manifest.meta.creator).toBe('form@example.com');
     expect(
       manifest.runtime.forms.default.files['wdoc-form/form1.json'],
     ).toBeDefined();

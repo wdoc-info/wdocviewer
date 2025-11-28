@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
 import JSZip from 'jszip';
+import { APP_VERSION } from '../config/app.config';
+import { AuthService } from './auth.service';
 import {
   ManifestMetaOverrides,
   generateManifest,
@@ -8,6 +10,8 @@ import {
 
 @Injectable({ providedIn: 'root' })
 export class DocumentCreatorService {
+  constructor(private authService: AuthService) {}
+
   async downloadWdocFromHtml(html: string, filename = 'new-document.wdoc') {
     const blob = await this.buildWdocBlob(html);
     const link = document.createElement('a');
@@ -54,9 +58,11 @@ ${content}
   }
 
   private buildManifestMeta(): ManifestMetaOverrides {
+    const creator = this.authService.getCurrentUserEmail();
     return {
       docTitle: 'WDOC document',
-      creator: 'wdoc-webapp',
+      appVersion: APP_VERSION,
+      ...(creator ? { creator } : {}),
     };
   }
 }
