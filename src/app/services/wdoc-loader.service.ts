@@ -4,6 +4,7 @@ import { lastValueFrom } from 'rxjs';
 import JSZip from 'jszip';
 import { HtmlProcessingService } from './html-processing.service';
 import { DialogService } from './dialog.service';
+import { ManifestSection, WdocManifest } from './manifest-builder';
 
 export interface WdocLoadResult {
   html: string;
@@ -111,7 +112,7 @@ export class WdocLoaderService {
   }
 
   private async verifyContentManifest(zip: JSZip): Promise<boolean> {
-    const manifestFile = zip.file('content_manifest.json');
+    const manifestFile = zip.file('manifest.json');
     if (!manifestFile) {
       return true;
     }
@@ -121,7 +122,7 @@ export class WdocLoaderService {
       const manifestText = await manifestFile.async('text');
       manifest = JSON.parse(manifestText);
     } catch (error) {
-      console.error('Failed to parse content_manifest.json', error);
+      console.error('Failed to parse manifest.json', error);
       await this.dialogService.openAlert(
         'The document content could not be verified and will not be opened.',
         'Verification failed',
@@ -129,7 +130,15 @@ export class WdocLoaderService {
       return false;
     }
 
-    if (manifest.algorithm !== 'sha256' || !Array.isArray(manifest.files)) {
+    const manifestShapeValid =
+      typeof manifest === 'object' &&
+      manifest !== null &&
+      typeof manifest.content === 'object' &&
+      manifest.content !== null &&
+      typeof manifest.runtime === 'object' &&
+      manifest.runtime !== null;
+
+    if (!manifestShapeValid) {
       await this.dialogService.openAlert(
         'The document manifest uses an unsupported format and will not be opened.',
         'Unsupported manifest',
@@ -138,32 +147,11 @@ export class WdocLoaderService {
     }
 
     const mismatches: string[] = [];
-    for (const file of manifest.files) {
-      if (
-        !file ||
-        typeof file.path !== 'string' ||
-        typeof file.sha256 !== 'string'
-      ) {
-        mismatches.push('content_manifest.json');
-        continue;
-      }
+    await this.verifyManifestSection(zip, manifest.content, mismatches);
 
-      const entry = zip.file(file.path);
-      if (!entry) {
-        mismatches.push(file.path);
-        continue;
-      }
-
-      try {
-        const data = await entry.async('uint8array');
-        const sha256 = await WdocLoaderService.computeSha256(data);
-        if (sha256 !== file.sha256) {
-          mismatches.push(file.path);
-        }
-      } catch (error) {
-        console.error('Failed to verify manifest entry', file.path, error);
-        mismatches.push(file.path);
-      }
+    const forms = (manifest as WdocManifest).runtime?.forms ?? {};
+    for (const section of Object.values(forms)) {
+      await this.verifyManifestSection(zip, section, mismatches);
     }
 
     if (mismatches.length > 0) {
@@ -245,6 +233,54 @@ export class WdocLoaderService {
         return 'text/plain';
       default:
         return undefined;
+    }
+  }
+
+  private async verifyManifestSection(
+    zip: JSZip,
+    section: ManifestSection,
+    mismatches: string[],
+  ): Promise<void> {
+    if (
+      !section ||
+      section.hashAlgorithm !== 'sha256' ||
+      typeof section.files !== 'object' ||
+      section.files === null
+    ) {
+      mismatches.push('manifest.json');
+      return;
+    }
+
+    const digestPayload = Object.entries(section.files).sort(([a], [b]) =>
+      a.localeCompare(b),
+    );
+    const digestSource = digestPayload
+      .map(([path, hash]) => `${path}:${hash}`)
+      .join('\n');
+    const computedDigest = await WdocLoaderService.computeSha256(
+      new TextEncoder().encode(digestSource),
+    );
+    if (section.contentDigest !== computedDigest) {
+      mismatches.push('manifest.json');
+    }
+
+    for (const [path, expectedHash] of Object.entries(section.files)) {
+      const entry = zip.file(path);
+      if (!entry || typeof expectedHash !== 'string') {
+        mismatches.push(path);
+        continue;
+      }
+
+      try {
+        const data = await entry.async('uint8array');
+        const sha256 = await WdocLoaderService.computeSha256(data);
+        if (sha256 !== expectedHash) {
+          mismatches.push(path);
+        }
+      } catch (error) {
+        console.error('Failed to verify manifest entry', path, error);
+        mismatches.push(path);
+      }
     }
   }
 }

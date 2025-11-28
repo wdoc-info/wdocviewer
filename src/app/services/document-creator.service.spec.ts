@@ -1,12 +1,23 @@
 import { TestBed } from '@angular/core/testing';
 import JSZip from 'jszip';
+import { APP_VERSION } from '../config/app.config';
+import { AuthService } from './auth.service';
 import { DocumentCreatorService } from './document-creator.service';
+import { WdocManifest } from './manifest-builder';
 
 describe('DocumentCreatorService', () => {
   let service: DocumentCreatorService;
+  let authService: jasmine.SpyObj<AuthService>;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    authService = jasmine.createSpyObj<AuthService>('AuthService', [
+      'getCurrentUserEmail',
+    ]);
+    authService.getCurrentUserEmail.and.returnValue('author@example.com');
+
+    TestBed.configureTestingModule({
+      providers: [{ provide: AuthService, useValue: authService }],
+    });
     service = TestBed.inject(DocumentCreatorService);
   });
 
@@ -16,14 +27,18 @@ describe('DocumentCreatorService', () => {
     const zip = await JSZip.loadAsync(arrayBuffer);
 
     const index = zip.file('index.html');
-    const manifest = zip.file('content_manifest.json');
+    const manifest = zip.file('manifest.json');
 
     expect(index).toBeTruthy();
     expect(manifest).toBeTruthy();
 
-    const manifestJson = JSON.parse(await manifest!.async('text'));
-    const filePaths = manifestJson.files.map((f: any) => f.path);
-    expect(filePaths).toContain('index.html');
+    const manifestJson = JSON.parse(
+      await manifest!.async('text'),
+    ) as WdocManifest;
+    expect(manifestJson.content.files['index.html']).toBeDefined();
+    expect(manifestJson.content.hashAlgorithm).toBe('sha256');
+    expect(manifestJson.meta.appVersion).toBe(APP_VERSION);
+    expect(manifestJson.meta.creator).toBe('author@example.com');
   });
 
   it('scopes default styles to the document wrapper', async () => {
@@ -48,21 +63,33 @@ describe('DocumentCreatorService', () => {
     expect(revokeSpy).toHaveBeenCalledWith('blob:url');
   });
 
-  it('labels manifest entries with roles and mime types', async () => {
+  it('includes all document files in manifest content and runtime sections', async () => {
     const zip = new JSZip();
     zip.file('index.html', '<p>hello</p>');
     zip.folder('wdoc-form')?.file('form-1.json', '{}');
     zip.file('assets/image.png', 'data');
 
-    const manifest = await (service as any).generateContentManifest(zip);
-    const files = JSON.parse(manifest).files as Array<{ path: string; role: string; mime: string }>;
-    const roles = files.reduce<Record<string, string>>((acc, file) => {
-      acc[file.path] = file.role;
-      return acc;
-    }, {});
+    const manifestJson = JSON.parse(
+      await (service as any).generateManifest(zip),
+    ) as WdocManifest;
 
-    expect(roles['index.html']).toBe('doc_core');
-    expect(roles['wdoc-form/form-1.json']).toBe('form_instance');
-    expect(files.find((f) => f.path === 'assets/image.png')?.mime).toBe('image/png');
+    expect(manifestJson.content.files['index.html']).toBeDefined();
+    expect(manifestJson.content.files['assets/image.png']).toBeDefined();
+    expect(
+      manifestJson.runtime.forms['default'].files['wdoc-form/form-1.json'],
+    ).toBeDefined();
+  });
+
+  it('omits creator when no user session is available', async () => {
+    authService.getCurrentUserEmail.and.returnValue(null);
+
+    const blob = await service.buildWdocBlob('<p>Draft</p>');
+    const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+    const manifestJson = JSON.parse(
+      await zip.file('manifest.json')!.async('text'),
+    ) as WdocManifest;
+
+    expect(manifestJson.meta.creator).toBeUndefined();
+    expect(manifestJson.meta.appVersion).toBe(APP_VERSION);
   });
 });

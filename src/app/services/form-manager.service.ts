@@ -1,9 +1,18 @@
 import { Injectable } from '@angular/core';
 import JSZip from 'jszip';
-import { WdocLoaderService } from './wdoc-loader.service';
+import { APP_VERSION } from '../config/app.config';
+import {
+  ManifestMetaOverrides,
+  WdocManifest,
+  generateManifest,
+  serializeManifest,
+} from './manifest-builder';
+import { AuthService } from './auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class FormManagerService {
+  constructor(private authService: AuthService) {}
+
   async populateFormsFromZip(zip: JSZip, doc: Document): Promise<void> {
     const formsFolder = zip.folder('wdoc-form');
     if (!formsFolder) {
@@ -48,6 +57,18 @@ export class FormManagerService {
           continue;
         }
         if (control instanceof HTMLInputElement && control.type === 'file') {
+          const removeExistingLink = () => {
+            const sibling = control.nextElementSibling;
+            if (
+              sibling instanceof HTMLAnchorElement &&
+              sibling.dataset['wdocFileLink'] === 'true'
+            ) {
+              sibling.remove();
+            }
+          };
+
+          control.addEventListener('change', removeExistingLink);
+
           if (typeof value === 'string' && value) {
             const fileEntry = formsFolder.file(value);
             if (fileEntry) {
@@ -60,7 +81,9 @@ export class FormManagerService {
               link.textContent = value;
               link.target = '_blank';
               link.download = value;
+              link.dataset['wdocFileLink'] = 'true';
               control.insertAdjacentElement('afterend', link);
+              control.dataset['savedFile'] = value;
             }
           }
         } else if (control instanceof HTMLInputElement && control.type === 'checkbox') {
@@ -108,12 +131,20 @@ export class FormManagerService {
         } else {
           const input = form.querySelector(`[name="${key}"]`) as HTMLInputElement | null;
           const file = input?.files?.[0] as File | undefined;
+          const existingFileName = input?.dataset['savedFile'];
           if (file && file.size > 0 && file.name) {
+            if (existingFileName && existingFileName !== file.name) {
+              formsFolder?.remove(existingFileName);
+              newZip.remove(`wdoc-form/${existingFileName}`);
+            }
             data[key] = file.name;
             const buf = await file.arrayBuffer();
             formsFolder?.file(file.name, buf, { binary: true });
+            if (input) {
+              input.dataset['savedFile'] = file.name;
+            }
           } else {
-            data[key] = '';
+            data[key] = existingFileName ?? '';
           }
         }
       }
@@ -121,7 +152,7 @@ export class FormManagerService {
       const name = id ? `${id}.json` : `form-${idx++}.json`;
       formsFolder?.file(name, JSON.stringify(data));
     }
-    await this.addContentManifest(newZip);
+    await this.addManifest(newZip);
     const blob = await newZip.generateAsync({ type: 'blob' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -142,61 +173,50 @@ export class FormManagerService {
   }
 
   private async addContentManifest(zip: JSZip): Promise<void> {
-    const files = [] as Array<{
-      path: string;
-      mime: string;
-      sha256: string;
-      role: string;
-    }>;
+    await this.addManifest(zip);
+  }
 
-    const entries = Object.values(zip.files);
-    for (const entry of entries) {
-      if (entry.dir || entry.name === 'content_manifest.json') {
-        continue;
-      }
-      const buffer = await entry.async('arraybuffer');
-      const sha256 = await WdocLoaderService.computeSha256(new Uint8Array(buffer));
-      files.push({
-        path: entry.name,
-        mime: this.guessMimeType(entry.name),
-        sha256,
-        role: this.determineRole(entry.name),
-      });
-    }
-
-    files.sort((a, b) => a.path.localeCompare(b.path));
-
-    const manifest = {
-      version: '1.0',
-      created: new Date().toISOString(),
-      algorithm: 'sha256',
-      files,
+  private async addManifest(zip: JSZip): Promise<void> {
+    const manifestMeta = await this.extractExistingMeta(zip);
+    const creator = this.authService.getCurrentUserEmail();
+    const mergedMeta: ManifestMetaOverrides = {
+      ...manifestMeta,
+      appVersion: APP_VERSION,
     };
+    if (creator) {
+      mergedMeta.creator = creator;
+    } else {
+      delete mergedMeta.creator;
+    }
 
-    zip.file('content_manifest.json', JSON.stringify(manifest, null, 2));
+    const manifest = await generateManifest(zip, mergedMeta);
+    zip.remove('content_manifest.json');
+    zip.file('manifest.json', serializeManifest(manifest));
   }
 
-  private determineRole(path: string): string {
-    if (path === 'index.html') {
-      return 'doc_core';
+  private async extractExistingMeta(zip: JSZip): Promise<ManifestMetaOverrides> {
+    const manifestFile = zip.file('manifest.json');
+    if (!manifestFile) {
+      return {};
     }
-    if (path.startsWith('wdoc-form/')) {
-      return path.endsWith('.json') ? 'form_instance' : 'form_attachment';
+
+    try {
+      const content = await manifestFile.async('text');
+      const parsed = JSON.parse(content) as WdocManifest;
+      return {
+        docTitle: parsed.meta?.docTitle,
+        creator: parsed.meta?.creator,
+        appVersion: parsed.meta?.appVersion,
+        creationDate: parsed.meta?.creationDate,
+      } satisfies ManifestMetaOverrides;
+    } catch {
+      return {};
     }
-    return 'asset';
   }
 
-  private guessMimeType(name: string): string {
+  private guessMimeType(name: string): string | undefined {
     const ext = name.split('.').pop()?.toLowerCase();
     switch (ext) {
-      case 'html':
-        return 'text/html';
-      case 'css':
-        return 'text/css';
-      case 'js':
-        return 'application/javascript';
-      case 'json':
-        return 'application/json';
       case 'png':
         return 'image/png';
       case 'jpg':
@@ -209,7 +229,7 @@ export class FormManagerService {
       case 'txt':
         return 'text/plain';
       default:
-        return 'application/octet-stream';
+        return undefined;
     }
   }
 }

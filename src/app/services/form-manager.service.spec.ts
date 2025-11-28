@@ -1,7 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import JSZip from 'jszip';
+import { APP_VERSION } from '../config/app.config';
+import { AuthService } from './auth.service';
 import { FormManagerService } from './form-manager.service';
 import { WdocLoaderService } from './wdoc-loader.service';
+import { WdocManifest } from './manifest-builder';
 
 interface FormDriveEntry {
   role: string;
@@ -10,9 +13,17 @@ interface FormDriveEntry {
 
 describe('FormManagerService', () => {
   let service: FormManagerService;
+  let authService: jasmine.SpyObj<AuthService>;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    authService = jasmine.createSpyObj<AuthService>('AuthService', [
+      'getCurrentUserEmail',
+    ]);
+    authService.getCurrentUserEmail.and.returnValue('form@example.com');
+
+    TestBed.configureTestingModule({
+      providers: [{ provide: AuthService, useValue: authService }],
+    });
     service = TestBed.inject(FormManagerService);
   });
 
@@ -69,6 +80,35 @@ describe('FormManagerService', () => {
 
     const pictureLink = doc.querySelector('input[name="picture"] + a') as HTMLAnchorElement;
     expect(pictureLink?.textContent).toBe('nous deux.jpg');
+  });
+
+  it('removes an existing file link when a new file is selected', async () => {
+    const html = `
+      <html><body>
+        <form id="upload">
+          <input type="file" name="attachment" />
+        </form>
+      </body></html>
+    `;
+    const zip = new JSZip();
+    zip.file('index.html', html);
+    const folder = zip.folder('wdoc-form')!;
+    folder.file('upload.json', JSON.stringify({ attachment: 'old.txt' }));
+    folder.file('old.txt', 'previous');
+
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    await service.populateFormsFromZip(zip, doc);
+
+    const input = doc.querySelector('input[name="attachment"]') as HTMLInputElement;
+    expect(input.nextElementSibling instanceof HTMLAnchorElement).toBeTrue();
+
+    const dt = new DataTransfer();
+    dt.items.add(new File(['fresh'], 'new.txt'));
+    Object.defineProperty(input, 'files', { value: dt.files });
+    input.dispatchEvent(new Event('change'));
+
+    expect(input.nextElementSibling instanceof HTMLAnchorElement).toBeFalse();
+    expect(input.dataset['savedFile']).toBe('old.txt');
   });
 
   it('restores checkbox and radio controls from saved data', async () => {
@@ -151,16 +191,58 @@ describe('FormManagerService', () => {
     expect(attachment).toBe('hello');
 
     const manifest = JSON.parse(
-      await savedZip.file('content_manifest.json')!.async('text'),
-    ) as { files: Array<{ path: string; role: string; mime: string }>; };
-    const roles = manifest.files.reduce<Record<string, string>>((acc, entry) => {
-      acc[entry.path] = entry.role;
-      return acc;
-    }, {});
+      await savedZip.file('manifest.json')!.async('text'),
+    ) as any;
 
-    expect(roles['index.html']).toBe('doc_core');
-    expect(roles['wdoc-form/form1.json']).toBe('form_instance');
-    expect(roles['wdoc-form/note.txt']).toBe('form_attachment');
+    expect(manifest.content.files['index.html']).toBeDefined();
+    expect(manifest.meta.appVersion).toBe(APP_VERSION);
+    expect(manifest.meta.creator).toBe('form@example.com');
+    expect(
+      manifest.runtime.forms.default.files['wdoc-form/form1.json'],
+    ).toBeDefined();
+    expect(manifest.runtime.forms.default.files['wdoc-form/note.txt']).toBeDefined();
+  });
+
+  it('replaces previously saved attachments when a new file is uploaded', async () => {
+    const initialZip = new JSZip();
+    const html = '<html><body><form id="form1"><input type="file" name="attachment" /></form></body></html>';
+    initialZip.file('index.html', html);
+    const formsFolder = initialZip.folder('wdoc-form')!;
+    formsFolder.file('form1.json', JSON.stringify({ attachment: 'old.txt' }));
+    formsFolder.file('old.txt', 'outdated');
+    const buffer = await initialZip.generateAsync({ type: 'arraybuffer' });
+
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    await service.populateFormsFromZip(await JSZip.loadAsync(buffer), doc);
+
+    const fileInput = doc.querySelector('input[type="file"]') as HTMLInputElement;
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(new File(['fresh'], 'new.txt', { type: 'text/plain' }));
+    Object.defineProperty(fileInput, 'files', { value: dataTransfer.files });
+    fileInput.dispatchEvent(new Event('change'));
+
+    const createObjectUrlSpy = spyOn(URL, 'createObjectURL').and.callFake(() => 'blob:updated');
+    spyOn(HTMLAnchorElement.prototype, 'click');
+    spyOn(URL, 'revokeObjectURL');
+
+    const saved = await service.saveForms(doc, buffer);
+    expect(saved).toBeTrue();
+
+    const blobArg = createObjectUrlSpy.calls.mostRecent().args[0] as Blob;
+    const savedZip = await JSZip.loadAsync(await blobArg.arrayBuffer());
+
+    const savedData = JSON.parse(
+      await savedZip.file('wdoc-form/form1.json')!.async('text'),
+    ) as Record<string, string>;
+    expect(savedData['attachment']).toBe('new.txt');
+    expect(savedZip.file('wdoc-form/new.txt')).toBeTruthy();
+    expect(savedZip.file('wdoc-form/old.txt')).toBeNull();
+
+    const manifest = JSON.parse(
+      await savedZip.file('manifest.json')!.async('text'),
+    ) as WdocManifest;
+    expect(manifest.runtime.forms['default'].files['wdoc-form/new.txt']).toBeDefined();
+    expect(manifest.runtime.forms['default'].files['wdoc-form/old.txt']).toBeUndefined();
   });
 
   it('blocks saving when HTML form validation fails', async () => {

@@ -6,7 +6,7 @@ This project is an **Angular 20+** application serving as a viewer for **.wdoc**
 **What is a .wdoc?** It is a zipped archive containing:
 
 - `index.html` (The entry point).
-- `content_manifest.json` (Security verification).
+- `manifest.json` (Security verification and metadata).
 - Assets (Images, CSS) referenced relatively.
 - `wdoc-form/` (JSON data for form state persistence).
 
@@ -30,7 +30,7 @@ The viewer is designed as an "anti-PDF," rendering HTML/CSS natively in the brow
 
 1. **Input:** File input or Drag-and-Drop.
 2. **Loader:** `WdocLoaderService` reads the ArrayBuffer.
-3. **Verification:** Validates `content_manifest.json` SHA-256 hashes before processing. **Fail if mismatch.**.
+3. **Verification:** Validates `manifest.json` SHA-256 hashes before processing. **Fail if mismatch.**.
 4. **Processing:** `HtmlProcessingService` sanitizes HTML and handles asset injection.
 
 ### Pagination Logic (Critical Complexity)
@@ -46,6 +46,8 @@ The viewer does **client-side pagination**. It does not use standard CSS print m
 - Forms are **not** standard Angular Reactive Forms.
 - We map JSON files from `wdoc-form/` in the zip to HTML `<input>` elements by `name` attribute.
 - **Saving:** When saving, we read the DOM values and write new JSON files back into the Zip buffer.
+- File inputs keep track of the previously saved attachment name; when a new file is uploaded, remove the old link and drop the
+  old file from the archive before hashing.
 
 ## 4. Coding Standards & Rules
 
@@ -62,6 +64,11 @@ The viewer injects specific custom elements. Do not remove these from sanitizati
 - `wdoc-page`, `wdoc-container`, `wdoc-content`
 - `wdoc-header`, `wdoc-footer`
 - `wdoc-barcode` (rendered dynamically via service).
+
+### Manifest rules
+
+- Use the shared `APP_VERSION` constant (`src/app/config/app.config.ts`) when writing `manifest.json` and surface it under `meta.appVersion`.
+- Only set `meta.creator` when an authenticated user email is available; omit the field entirely otherwise.
 
 ## 5. Testing Guidelines
 

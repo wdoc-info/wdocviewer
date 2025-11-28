@@ -43,11 +43,21 @@ describe('WdocLoaderService', () => {
     const zip = new JSZip();
     zip.file('index.html', '<html></html>');
     zip.file(
-      'content_manifest.json',
+      'manifest.json',
       JSON.stringify({
-        version: '1.0',
-        algorithm: 'sha256',
-        files: [{ path: 'index.html', sha256: '0'.repeat(64) }],
+        meta: {
+          docTitle: 'Doc',
+          creator: 'tester',
+          creationDate: '2024-01-01T00:00:00Z',
+          lastUpdateDate: '2024-01-01T00:00:00Z',
+        },
+        content: {
+          hashAlgorithm: 'sha256',
+          lastUpdateDate: '2024-01-01T00:00:00Z',
+          files: { 'index.html': '0'.repeat(64) },
+          contentDigest: '0'.repeat(64),
+        },
+        runtime: { forms: {} },
       })
     );
     const ok = await (service as any).verifyContentManifest(zip);

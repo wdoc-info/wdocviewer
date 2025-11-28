@@ -52,6 +52,10 @@ export class AuthService {
     return this.supabase.auth.signOut();
   }
 
+  getCurrentUserEmail(): string | null {
+    return this.sessionSubject.getValue()?.user?.email ?? this.getStoredEmail();
+  }
+
   getStoredEmail(): string | null {
     if (typeof window === 'undefined') {
       return null;
