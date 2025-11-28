@@ -7,7 +7,7 @@
   >
     <app-navbar
       (fileSelected)="onFileSelected($event)"
-      [showSave]="showSave"
+      [showSave]="showFormSave || showDocumentSave"
       (save)="onSaveForms()"
       (closeNav)="closeNav()"
     ></app-navbar>
@@ -15,8 +15,9 @@
 
   <mat-sidenav-content>
     <div class="main-content">
-      <app-topbar
-        [showSave]="isEditing || showSave"
+    <app-topbar
+        [showFormSave]="!isEditing && showFormSave"
+        [showDocumentSave]="isEditing && showDocumentSave"
         [navOpen]="isNavOpen"
         [title]="documentTitle"
         [zoom]="zoom"
@@ -25,7 +26,8 @@
         [formAnswers]="formAnswers"
         [showNewDocument]="true"
         (toggleNav)="toggleNav()"
-        (save)="isEditing ? onSaveNewDocument() : onSaveForms()"
+        (saveForm)="onSaveForms()"
+        (saveDocument)="onSaveNewDocument()"
         (zoomChange)="onZoomChange($event)"
         (createNewDocument)="startNewDocument()"
       ></app-topbar>

@@ -44,11 +44,11 @@ describe('AppComponent', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should mark showSave when form input changes', () => {
+  it('should mark showFormSave when form input changes', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance as any;
     app.onFormInteraction();
-    expect(app.showSave).toBeTrue();
+    expect(app.showFormSave).toBeTrue();
   });
 
   it('clamps zoom changes within bounds', () => {
@@ -148,19 +148,19 @@ describe('AppComponent', () => {
     ).toBeTrue();
   });
 
-  it('calls saveForms when saving and resets showSave', async () => {
+  it('calls saveForms when saving and resets showFormSave', async () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
     const buffer = new ArrayBuffer(8);
     (app as any).originalArrayBuffer = buffer;
     const container = document.createElement('div');
     (app as any).viewer = { nativeElement: container } as any;
-    formManager.saveForms.and.resolveTo();
+    formManager.saveForms.and.resolveTo(true);
 
     await app.onSaveForms();
 
     expect(formManager.saveForms).toHaveBeenCalledWith(container, buffer);
-    expect(app.showSave).toBeFalse();
+    expect(app.showFormSave).toBeFalse();
   });
 
   it('creates a new document and triggers a download on save', async () => {

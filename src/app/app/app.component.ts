@@ -43,7 +43,8 @@ import { DocumentCreatorService } from '../services/document-creator.service';
 })
 export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   htmlContent: SafeHtml | null = null;
-  showSave = false;
+  showFormSave = false;
+  showDocumentSave = false;
   isNavOpen = false;
   isEditing = false;
   sidenavMode: MatDrawerMode = 'over';
@@ -259,15 +260,21 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     if (
       !this.originalArrayBuffer ||
       !this.viewer ||
-      !this.viewer.nativeElement
+      (!this.viewer.documentRoot && !this.viewer.nativeElement)
     ) {
       return;
     }
-    await this.formManagerService.saveForms(
-      this.viewer.nativeElement,
+    const formRoot = this.viewer.documentRoot ?? this.viewer.nativeElement;
+    if (!formRoot) {
+      return;
+    }
+    const saved = await this.formManagerService.saveForms(
+      formRoot,
       this.originalArrayBuffer
     );
-    this.showSave = false;
+    if (saved) {
+      this.showFormSave = false;
+    }
   }
 
   private containsFiles(event: DragEvent): boolean {
@@ -353,7 +360,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.isEditing = false;
     this.attachments = result.attachments;
     this.formAnswers = result.formAnswers;
-    this.showSave = false;
+    this.showFormSave = false;
+    this.showDocumentSave = false;
     this.htmlContent = this.sanitizer.bypassSecurityTrustHtml(result.html);
     if (!this.isDesktop) {
       this.isNavOpen = false;
@@ -363,20 +371,20 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onFormInteraction(): void {
-    this.showSave = true;
+    this.showFormSave = true;
   }
 
   startNewDocument(): void {
     this.isEditing = true;
     this.documentTitle = this.newDocumentTitle;
     this.editorContent = '<p>Start writing...</p>';
-    this.showSave = true;
+    this.showDocumentSave = true;
     this.cdr.markForCheck();
   }
 
   onEditorContentChange(content: string): void {
     this.editorContent = content;
-    this.showSave = true;
+    this.showDocumentSave = true;
   }
 
   async onSaveNewDocument(): Promise<void> {
@@ -384,6 +392,6 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       ? this.editorContent
       : '<p></p>';
     await this.documentCreatorService.downloadWdocFromHtml(content);
-    this.showSave = false;
+    this.showDocumentSave = false;
   }
 }
