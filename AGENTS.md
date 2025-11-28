@@ -46,6 +46,8 @@ The viewer does **client-side pagination**. It does not use standard CSS print m
 - Forms are **not** standard Angular Reactive Forms.
 - We map JSON files from `wdoc-form/` in the zip to HTML `<input>` elements by `name` attribute.
 - **Saving:** When saving, we read the DOM values and write new JSON files back into the Zip buffer.
+- File inputs keep track of the previously saved attachment name; when a new file is uploaded, remove the old link and drop the
+  old file from the archive before hashing.
 
 ## 4. Coding Standards & Rules
 

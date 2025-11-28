@@ -53,7 +53,7 @@ export class AuthService {
   }
 
   getCurrentUserEmail(): string | null {
-    return this.sessionSubject.getValue()?.user?.email ?? null;
+    return this.sessionSubject.getValue()?.user?.email ?? this.getStoredEmail();
   }
 
   getStoredEmail(): string | null {

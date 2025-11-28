@@ -69,6 +69,12 @@ describe('AuthService', () => {
     expect(supabaseStub.auth.signOut.calls.count()).toBe(1);
   });
 
+  it('returns stored email when no session is available', () => {
+    localStorage.setItem('wdoc-auth-email', 'remembered@example.com');
+    service = TestBed.inject(AuthService);
+
+    expect(service.getCurrentUserEmail()).toBe('remembered@example.com');
+  });
 
   it('updates stored email when auth state changes', fakeAsync(() => {
     service = TestBed.inject(AuthService);

@@ -57,6 +57,18 @@ export class FormManagerService {
           continue;
         }
         if (control instanceof HTMLInputElement && control.type === 'file') {
+          const removeExistingLink = () => {
+            const sibling = control.nextElementSibling;
+            if (
+              sibling instanceof HTMLAnchorElement &&
+              sibling.dataset['wdocFileLink'] === 'true'
+            ) {
+              sibling.remove();
+            }
+          };
+
+          control.addEventListener('change', removeExistingLink);
+
           if (typeof value === 'string' && value) {
             const fileEntry = formsFolder.file(value);
             if (fileEntry) {
@@ -69,7 +81,9 @@ export class FormManagerService {
               link.textContent = value;
               link.target = '_blank';
               link.download = value;
+              link.dataset['wdocFileLink'] = 'true';
               control.insertAdjacentElement('afterend', link);
+              control.dataset['savedFile'] = value;
             }
           }
         } else if (control instanceof HTMLInputElement && control.type === 'checkbox') {
@@ -117,12 +131,20 @@ export class FormManagerService {
         } else {
           const input = form.querySelector(`[name="${key}"]`) as HTMLInputElement | null;
           const file = input?.files?.[0] as File | undefined;
+          const existingFileName = input?.dataset['savedFile'];
           if (file && file.size > 0 && file.name) {
+            if (existingFileName && existingFileName !== file.name) {
+              formsFolder?.remove(existingFileName);
+              newZip.remove(`wdoc-form/${existingFileName}`);
+            }
             data[key] = file.name;
             const buf = await file.arrayBuffer();
             formsFolder?.file(file.name, buf, { binary: true });
+            if (input) {
+              input.dataset['savedFile'] = file.name;
+            }
           } else {
-            data[key] = '';
+            data[key] = existingFileName ?? '';
           }
         }
       }
