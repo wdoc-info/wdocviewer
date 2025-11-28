@@ -12,11 +12,6 @@
   </button>
   <div class="topbar-title" [attr.title]="title">{{ title }}</div>
   <div class="topbar-actions">
-    @if (showNewDocument) {
-      <button type="button" class="topbar-new" (click)="onCreateNewDocument()">
-        New document
-      </button>
-    }
     @if (hasDocument) {
       <div class="zoom-controls" aria-label="Zoom controls">
         <button

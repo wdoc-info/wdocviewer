@@ -9,6 +9,12 @@
   min-height: calc(100vh - 96px);
 }
 
+:host {
+  --page-width: 793.8px;
+  --page-height: 1122px;
+  --page-padding: 20px;
+}
+
 .editor-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -35,17 +41,61 @@
   border-color: #312e81;
 }
 
-.editor-surface {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 18px 20px;
-  min-height: 420px;
-  line-height: 1.6;
-  font-size: 16px;
+.editor-container {
+  background: transparent;
+  padding: 12px 0 0;
+  height: auto;
+  min-height: calc(100vh - 200px);
 }
 
-.editor-surface:focus-within {
-  outline: 2px solid #4338ca;
-  outline-offset: 3px;
+.editor-content {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.page-list {
+  position: relative;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: var(--page-width);
+}
+
+.page-shell {
+  position: relative;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+  width: var(--page-width);
+  min-height: var(--page-height);
+  padding: var(--page-padding);
+}
+
+.editor-surface {
+  width: 100%;
+  border: none;
+  line-height: 1.6;
+  font-size: 16px;
+  box-sizing: border-box;
+  margin: 0;
+  min-height: calc(var(--page-height) - var(--page-padding) * 2);
+}
+
+.editor-wrapper :focus-visible {
+  outline: none;
+}
+
+.ProseMirror,
+.ProseMirror-focused,
+.editor-wrapper .tiptap.ProseMirror:focus-visible {
+  outline: none !important;
+  box-shadow: none;
+}
+
+.editor-surface:focus-visible {
+  outline: none !important;
 }

@@ -25,6 +25,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
   @Output() save = new EventEmitter<void>();
   @Input() showSave = false;
   @Output() closeNav = new EventEmitter<void>();
+  @Output() createNewDocument = new EventEmitter<void>();
   @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
 
   isAuthModalOpen = false;
@@ -58,6 +59,11 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
   triggerFileDialog() {
     this.fileInput?.nativeElement.click();
+  }
+
+  onCreateNewDocument(): void {
+    this.createNewDocument.emit();
+    this.closeNav.emit();
   }
 
   onCloseNav() {

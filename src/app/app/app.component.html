@@ -10,6 +10,7 @@
       [showSave]="showFormSave || showDocumentSave"
       (save)="onSaveForms()"
       (closeNav)="closeNav()"
+      (createNewDocument)="startNewDocument()"
     ></app-navbar>
   </mat-sidenav>
 
@@ -24,12 +25,10 @@
         [hasDocument]="!isEditing && !!htmlContent"
         [attachments]="attachments"
         [formAnswers]="formAnswers"
-        [showNewDocument]="true"
         (toggleNav)="toggleNav()"
         (saveForm)="onSaveForms()"
         (saveDocument)="onSaveNewDocument()"
         (zoomChange)="onZoomChange($event)"
-        (createNewDocument)="startNewDocument()"
       ></app-topbar>
       @if (isEditing) {
         <app-document-editor

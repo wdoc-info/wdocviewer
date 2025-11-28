@@ -19,5 +19,23 @@
       Numbered list
     </button>
   </div>
-  <div #editorHost class="editor-surface" aria-label="Document content"></div>
+
+  <wdoc-container class="editor-container">
+    <wdoc-content class="editor-content">
+      <div class="page-list">
+        @for (page of pageContents; let i = $index; track i) {
+          <wdoc-page
+            class="page-shell"
+          >
+            <div
+              #pageHost
+              class="editor-surface"
+              aria-label="Document content"
+              [attr.data-page-index]="i"
+            ></div>
+          </wdoc-page>
+        }
+      </div>
+    </wdoc-content>
+  </wdoc-container>
 </div>

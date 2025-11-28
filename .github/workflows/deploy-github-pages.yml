@@ -26,6 +26,8 @@ jobs:
         run: npm ci
 
       - name: Build Angular wdocviewer
+        env:
+          SUPABASE_REDIRECT_URL: https://app.wdoc.info
         run: |
           npm run build -- --configuration=production --base-href="/"
 
