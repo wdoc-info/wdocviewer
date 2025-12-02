@@ -1,6 +1,6 @@
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { Session } from '@supabase/supabase-js';
-import { supabaseConfig } from '../config/supabase.config';
+import { supabaseConfig } from '../config/app.config';
 import { AuthService } from './auth.service';
 import { setSupabaseClient } from './supabase-client';
 
@@ -54,7 +54,7 @@ describe('AuthService', () => {
 
     expect(supabaseStub.auth.signInWithOtp).toHaveBeenCalledWith({
       email: 'another@example.com',
-      options: { emailRedirectTo: supabaseConfig.redirectUrls.local },
+      options: { emailRedirectTo: supabaseConfig.redirectUrl },
     });
     expect(localStorage.getItem('wdoc-auth-email')).toBe('another@example.com');
   });

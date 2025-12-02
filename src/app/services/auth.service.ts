@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { BehaviorSubject } from 'rxjs';
-import { supabaseConfig } from '../config/supabase.config';
+import { supabaseConfig } from '../config/app.config';
 import { getSupabaseClient } from './supabase-client';
 
 @Injectable({ providedIn: 'root' })
@@ -78,12 +78,6 @@ export class AuthService {
   }
 
   private getRedirectUrl() {
-    if (typeof window === 'undefined') {
-      return supabaseConfig.redirectUrls.production;
-    }
-    if (window.location.origin.includes('localhost')) {
-      return supabaseConfig.redirectUrls.local;
-    }
-    return supabaseConfig.redirectUrls.production;
+    return supabaseConfig.redirectUrl;
   }
 }
