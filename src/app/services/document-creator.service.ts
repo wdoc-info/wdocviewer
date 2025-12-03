@@ -12,8 +12,12 @@ import {
 export class DocumentCreatorService {
   constructor(private authService: AuthService) {}
 
-  async downloadWdocFromHtml(html: string, filename = 'new-document.wdoc') {
-    const blob = await this.buildWdocBlob(html);
+  async downloadWdocFromHtml(
+    html: string,
+    docVersion: string,
+    filename = 'new-document.wdoc',
+  ) {
+    const blob = await this.buildWdocBlob(html, docVersion);
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = filename;
@@ -21,12 +25,12 @@ export class DocumentCreatorService {
     URL.revokeObjectURL(link.href);
   }
 
-  async buildWdocBlob(html: string): Promise<Blob> {
+  async buildWdocBlob(html: string, docVersion: string): Promise<Blob> {
     const zip = new JSZip();
     const wrapped = this.wrapHtml(html);
     zip.file('index.html', wrapped);
     zip.folder('wdoc-form');
-    const manifest = await this.generateManifest(zip);
+    const manifest = await this.generateManifest(zip, docVersion);
     zip.file('manifest.json', manifest);
     return zip.generateAsync({ type: 'blob' });
   }
@@ -52,16 +56,17 @@ ${content}
 </html>`;
   }
 
-  private async generateManifest(zip: JSZip): Promise<string> {
-    const manifest = await generateManifest(zip, this.buildManifestMeta());
+  private async generateManifest(zip: JSZip, docVersion: string): Promise<string> {
+    const manifest = await generateManifest(zip, this.buildManifestMeta(docVersion));
     return serializeManifest(manifest);
   }
 
-  private buildManifestMeta(): ManifestMetaOverrides {
+  private buildManifestMeta(docVersion: string): ManifestMetaOverrides {
     const creator = this.authService.getCurrentUserEmail();
     return {
       docTitle: 'WDOC document',
       appVersion: APP_VERSION,
+      docVersion,
       ...(creator ? { creator } : {}),
     };
   }

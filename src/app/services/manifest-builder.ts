@@ -16,6 +16,7 @@ export interface WdocManifest {
     appVersion: string;
     creationDate: string;
     lastUpdateDate: string;
+    docVersion: string;
   };
   content: ManifestSection;
   runtime: {
@@ -28,6 +29,7 @@ export interface ManifestMetaOverrides {
   creator?: string;
   appVersion?: string;
   creationDate?: string;
+  docVersion?: string;
 }
 
 const TEXT_ENCODER = new TextEncoder();
@@ -62,6 +64,7 @@ export async function generateManifest(
     ...(metaOverrides?.creator ? { creator: metaOverrides.creator } : {}),
     creationDate: metaOverrides?.creationDate ?? now,
     appVersion: metaOverrides?.appVersion ?? APP_VERSION,
+    docVersion: metaOverrides?.docVersion ?? '1.0.0',
   } satisfies Omit<WdocManifest['meta'], 'lastUpdateDate' | 'creator'> & {
     creator?: string;
   };

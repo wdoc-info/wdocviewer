@@ -57,6 +57,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   documentTitle = this.defaultTitle;
   editorContent = '<p>Start writing...</p>';
   private originalArrayBuffer: ArrayBuffer | null = null;
+  private docVersionCounter = 0;
   private resizeListener?: () => void;
   private isDesktop = false;
   private beforePrintListener?: () => void;
@@ -379,6 +380,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.documentTitle = this.newDocumentTitle;
     this.editorContent = '<p>Start writing...</p>';
     this.showDocumentSave = true;
+    this.docVersionCounter = 0;
     this.cdr.markForCheck();
   }
 
@@ -391,7 +393,16 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     const content = this.editorContent?.trim()
       ? this.editorContent
       : '<p></p>';
-    await this.documentCreatorService.downloadWdocFromHtml(content);
+    const docVersion = this.buildNextDocVersion();
+    await this.documentCreatorService.downloadWdocFromHtml(
+      content,
+      docVersion,
+    );
     this.showDocumentSave = false;
+  }
+
+  private buildNextDocVersion(): string {
+    this.docVersionCounter += 1;
+    return `${this.docVersionCounter}.0.0`;
   }
 }
