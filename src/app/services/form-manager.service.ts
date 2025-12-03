@@ -208,6 +208,7 @@ export class FormManagerService {
         creator: parsed.meta?.creator,
         appVersion: parsed.meta?.appVersion,
         creationDate: parsed.meta?.creationDate,
+        docVersion: parsed.meta?.docVersion,
       } satisfies ManifestMetaOverrides;
     } catch {
       return {};

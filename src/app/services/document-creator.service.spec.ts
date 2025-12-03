@@ -22,7 +22,7 @@ describe('DocumentCreatorService', () => {
   });
 
   it('builds a wdoc blob with an index and manifest entries', async () => {
-    const blob = await service.buildWdocBlob('<p>Draft</p>');
+    const blob = await service.buildWdocBlob('<p>Draft</p>', '1.0.0');
     const arrayBuffer = await blob.arrayBuffer();
     const zip = await JSZip.loadAsync(arrayBuffer);
 
@@ -39,10 +39,11 @@ describe('DocumentCreatorService', () => {
     expect(manifestJson.content.hashAlgorithm).toBe('sha256');
     expect(manifestJson.meta.appVersion).toBe(APP_VERSION);
     expect(manifestJson.meta.creator).toBe('author@example.com');
+    expect(manifestJson.meta.docVersion).toBe('1.0.0');
   });
 
   it('scopes default styles to the document wrapper', async () => {
-    const blob = await service.buildWdocBlob('<p>Draft</p>');
+    const blob = await service.buildWdocBlob('<p>Draft</p>', '1.0.0');
     const zip = await JSZip.loadAsync(await blob.arrayBuffer());
     const indexContent = await zip.file('index.html')!.async('text');
 
@@ -56,7 +57,11 @@ describe('DocumentCreatorService', () => {
     const revokeSpy = spyOn(URL, 'revokeObjectURL');
     const clickSpy = spyOn(HTMLAnchorElement.prototype, 'click');
 
-    await service.downloadWdocFromHtml('<p>content</p>', 'custom-name.wdoc');
+    await service.downloadWdocFromHtml(
+      '<p>content</p>',
+      '2.0.0',
+      'custom-name.wdoc',
+    );
 
     expect(createObjectUrlSpy).toHaveBeenCalled();
     expect(clickSpy).toHaveBeenCalled();
@@ -70,7 +75,7 @@ describe('DocumentCreatorService', () => {
     zip.file('assets/image.png', 'data');
 
     const manifestJson = JSON.parse(
-      await (service as any).generateManifest(zip),
+      await (service as any).generateManifest(zip, '1.0.0'),
     ) as WdocManifest;
 
     expect(manifestJson.content.files['index.html']).toBeDefined();
@@ -83,7 +88,7 @@ describe('DocumentCreatorService', () => {
   it('omits creator when no user session is available', async () => {
     authService.getCurrentUserEmail.and.returnValue(null);
 
-    const blob = await service.buildWdocBlob('<p>Draft</p>');
+    const blob = await service.buildWdocBlob('<p>Draft</p>', '1.0.0');
     const zip = await JSZip.loadAsync(await blob.arrayBuffer());
     const manifestJson = JSON.parse(
       await zip.file('manifest.json')!.async('text'),
@@ -91,5 +96,6 @@ describe('DocumentCreatorService', () => {
 
     expect(manifestJson.meta.creator).toBeUndefined();
     expect(manifestJson.meta.appVersion).toBe(APP_VERSION);
+    expect(manifestJson.meta.docVersion).toBe('1.0.0');
   });
 });

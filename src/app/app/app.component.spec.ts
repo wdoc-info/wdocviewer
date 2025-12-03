@@ -170,7 +170,24 @@ describe('AppComponent', () => {
     await app.onSaveNewDocument();
 
     expect(app.isEditing).toBeTrue();
-    expect(documentCreator.downloadWdocFromHtml).toHaveBeenCalled();
+    expect(documentCreator.downloadWdocFromHtml).toHaveBeenCalledWith(
+      jasmine.any(String),
+      '1.0.0',
+    );
+  });
+
+  it('bumps document version on each subsequent save', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    app.startNewDocument();
+
+    await app.onSaveNewDocument();
+    await app.onSaveNewDocument();
+
+    expect(documentCreator.downloadWdocFromHtml).toHaveBeenCalledWith(
+      jasmine.any(String),
+      '2.0.0',
+    );
   });
 
   it('handles dragenter/leave to toggle overlay depth', () => {

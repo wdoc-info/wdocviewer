@@ -197,6 +197,7 @@ describe('FormManagerService', () => {
     expect(manifest.content.files['index.html']).toBeDefined();
     expect(manifest.meta.appVersion).toBe(APP_VERSION);
     expect(manifest.meta.creator).toBe('form@example.com');
+    expect(manifest.meta.docVersion).toBe('1.0.0');
     expect(
       manifest.runtime.forms.default.files['wdoc-form/form1.json'],
     ).toBeDefined();
