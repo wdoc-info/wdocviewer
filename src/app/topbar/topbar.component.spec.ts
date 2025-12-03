@@ -33,6 +33,7 @@ describe('TopbarComponent', () => {
 
   it('emits save document when save document button clicked', () => {
     component.showDocumentSave = true;
+    component.isEditing = true;
     fixture.detectChanges();
     spyOn(component.saveDocument, 'emit');
     const buttons = fixture.nativeElement.querySelectorAll(
@@ -52,6 +53,31 @@ describe('TopbarComponent', () => {
       '.topbar-title'
     );
     expect(el.textContent?.trim()).toBe('My Document');
+  });
+
+  it('emits title changes when editing', () => {
+    component.isEditing = true;
+    fixture.detectChanges();
+    spyOn(component.titleChange, 'emit');
+    const input: HTMLInputElement = fixture.nativeElement.querySelector(
+      '#document-title-input',
+    );
+    input.value = 'Updated title';
+    input.dispatchEvent(new Event('input'));
+
+    expect(component.titleChange.emit).toHaveBeenCalledWith('Updated title');
+  });
+
+  it('emits editDocument when clicking update button', () => {
+    component.hasDocument = true;
+    fixture.detectChanges();
+    spyOn(component.editDocument, 'emit');
+    const updateButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+      '.topbar-secondary',
+    );
+    updateButton.click();
+
+    expect(component.editDocument.emit).toHaveBeenCalled();
   });
 
   it('emits zoomChange when zoom buttons are used', () => {

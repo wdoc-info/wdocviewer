@@ -173,7 +173,50 @@ describe('AppComponent', () => {
     expect(documentCreator.downloadWdocFromHtml).toHaveBeenCalledWith(
       jasmine.any(String),
       '1.0.0',
+      'New document',
+      'new-document.wdoc',
     );
+  });
+
+  it('normalizes an empty title and marks the document dirty while editing', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    app.isEditing = true;
+    app.onDocumentTitleChange('   ');
+
+    expect(app.documentTitle).toBe('New document');
+    expect(app.showDocumentSave).toBeTrue();
+    expect(document.title).toBe('New document');
+  });
+
+  it('extracts editor content from wdoc pages', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    const html = `<!doctype html>
+      <html><body>
+        <wdoc-container>
+          <wdoc-page><wdoc-content><p>First</p></wdoc-content></wdoc-page>
+          <wdoc-page><wdoc-content><p>Second</p></wdoc-content></wdoc-page>
+        </wdoc-container>
+      </body></html>`;
+
+    const content = app['extractEditorContent'](html);
+
+    expect(content).toContain('First');
+    expect(content).toContain('Second');
+  });
+
+  it('enters editing mode with previously loaded content', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance as any;
+    app['loadedDocumentHtml'] = '<wdoc-container><wdoc-content><p>Loaded</p></wdoc-content></wdoc-container>';
+    app['editableContentFromLoaded'] = '<p>Loaded</p>';
+
+    app.startEditingLoadedDocument();
+
+    expect(app.isEditing).toBeTrue();
+    expect(app.editorContent).toContain('Loaded');
+    expect(app.showDocumentSave).toBeTrue();
   });
 
   it('bumps document version on each subsequent save', async () => {
@@ -187,6 +230,8 @@ describe('AppComponent', () => {
     expect(documentCreator.downloadWdocFromHtml).toHaveBeenCalledWith(
       jasmine.any(String),
       '2.0.0',
+      'New document',
+      'new-document.wdoc',
     );
   });
 

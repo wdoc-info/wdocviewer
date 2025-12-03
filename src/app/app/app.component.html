@@ -21,6 +21,7 @@
         [showDocumentSave]="isEditing && showDocumentSave"
         [navOpen]="isNavOpen"
         [title]="documentTitle"
+        [isEditing]="isEditing"
         [zoom]="zoom"
         [hasDocument]="!isEditing && !!htmlContent"
         [attachments]="attachments"
@@ -28,6 +29,8 @@
         (toggleNav)="toggleNav()"
         (saveForm)="onSaveForms()"
         (saveDocument)="onSaveNewDocument()"
+        (editDocument)="startEditingLoadedDocument()"
+        (titleChange)="onDocumentTitleChange($event)"
         (zoomChange)="onZoomChange($event)"
       ></app-topbar>
       @if (isEditing) {

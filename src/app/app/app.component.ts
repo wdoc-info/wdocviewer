@@ -58,6 +58,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   editorContent = '<p>Start writing...</p>';
   private originalArrayBuffer: ArrayBuffer | null = null;
   private docVersionCounter = 0;
+  private loadedDocumentHtml = '';
+  private editableContentFromLoaded = '<p>Start writing...</p>';
   private resizeListener?: () => void;
   private isDesktop = false;
   private beforePrintListener?: () => void;
@@ -357,12 +359,17 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     this.originalArrayBuffer = result.originalArrayBuffer;
+    this.loadedDocumentHtml = result.html;
+    this.editableContentFromLoaded = this.extractEditorContent(result.html);
     this.documentTitle = result.documentTitle;
+    this.updateWindowTitle(this.documentTitle);
     this.isEditing = false;
+    this.docVersionCounter = 0;
     this.attachments = result.attachments;
     this.formAnswers = result.formAnswers;
     this.showFormSave = false;
     this.showDocumentSave = false;
+    this.editorContent = this.editableContentFromLoaded;
     this.htmlContent = this.sanitizer.bypassSecurityTrustHtml(result.html);
     if (!this.isDesktop) {
       this.isNavOpen = false;
@@ -378,15 +385,44 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   startNewDocument(): void {
     this.isEditing = true;
     this.documentTitle = this.newDocumentTitle;
+    this.updateWindowTitle(this.documentTitle);
     this.editorContent = '<p>Start writing...</p>';
+    this.loadedDocumentHtml = '';
+    this.editableContentFromLoaded = this.editorContent;
     this.showDocumentSave = true;
+    this.showFormSave = false;
     this.docVersionCounter = 0;
+    this.cdr.markForCheck();
+  }
+
+  startEditingLoadedDocument(): void {
+    if (!this.loadedDocumentHtml && !this.htmlContent) {
+      return;
+    }
+
+    this.isEditing = true;
+    this.showDocumentSave = true;
+    this.showFormSave = false;
+    this.docVersionCounter = 0;
+    this.editorContent = this.editableContentFromLoaded;
+    this.cdr.markForCheck();
+  }
+
+  onDocumentTitleChange(title: string): void {
+    const normalizedTitle = this.normalizeTitle(title);
+    this.documentTitle = normalizedTitle;
+    if (this.isEditing) {
+      this.showDocumentSave = true;
+    }
+    this.updateWindowTitle(normalizedTitle);
     this.cdr.markForCheck();
   }
 
   onEditorContentChange(content: string): void {
     this.editorContent = content;
+    this.editableContentFromLoaded = content;
     this.showDocumentSave = true;
+    this.cdr.markForCheck();
   }
 
   async onSaveNewDocument(): Promise<void> {
@@ -394,9 +430,15 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       ? this.editorContent
       : '<p></p>';
     const docVersion = this.buildNextDocVersion();
+    const title = this.documentTitle?.trim()
+      ? this.documentTitle.trim()
+      : this.newDocumentTitle;
+    const filename = `${this.buildFilenameFromTitle(title)}.wdoc`;
     await this.documentCreatorService.downloadWdocFromHtml(
       content,
       docVersion,
+      title,
+      filename,
     );
     this.showDocumentSave = false;
   }
@@ -404,5 +446,48 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   private buildNextDocVersion(): string {
     this.docVersionCounter += 1;
     return `${this.docVersionCounter}.0.0`;
+  }
+
+  private extractEditorContent(html: string): string {
+    if (!html) {
+      return '<p></p>';
+    }
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    Array.from(doc.querySelectorAll('style')).forEach((styleEl) =>
+      styleEl.remove(),
+    );
+
+    const contentBlocks = Array.from(doc.querySelectorAll('wdoc-content'));
+    const combined = contentBlocks
+      .map((block) => block.innerHTML)
+      .join('')
+      .trim();
+
+    const fallback = doc.body?.innerHTML?.trim();
+    const result = combined || fallback || '<p></p>';
+    return result.length > 0 ? result : '<p></p>';
+  }
+
+  private buildFilenameFromTitle(title: string): string {
+    const safeTitle = title.trim() || 'document';
+    const slug = safeTitle
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/gi, '-')
+      .replace(/^-+|-+$/g, '');
+    return slug || 'document';
+  }
+
+  private normalizeTitle(title: string): string {
+    const normalized = title.trim();
+    return normalized.length > 0 ? normalized : this.newDocumentTitle;
+  }
+
+  private updateWindowTitle(title: string): void {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    document.title = title;
   }
 }
