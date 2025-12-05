@@ -180,15 +180,22 @@ describe('DocumentEditorComponent', () => {
     Object.defineProperty(renderedImage, 'naturalWidth', { value: 1200 });
     Object.defineProperty(renderedImage, 'naturalHeight', { value: 900 });
 
-    const chain = jasmine.createSpyObj('chain', ['focus', 'updateAttributes', 'run']);
+    const chain = jasmine.createSpyObj('chain', [
+      'focus',
+      'updateAttributes',
+      'run',
+      'setNodeSelection',
+    ]);
     chain.focus.and.returnValue(chain);
     chain.updateAttributes.and.returnValue(chain);
+    chain.setNodeSelection.and.returnValue(chain);
     spyOn(editor, 'chain').and.returnValue(chain as any);
 
     component.handleEditorClick({ target: renderedImage } as any);
     component.onImageSizeChange('50');
 
     expect(component.selectedImageSize).toBe(50);
+    expect(chain.setNodeSelection).toHaveBeenCalled();
     expect(chain.updateAttributes).toHaveBeenCalledWith('image', {
       width: jasmine.any(Number),
       height: jasmine.any(Number),

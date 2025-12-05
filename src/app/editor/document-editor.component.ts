@@ -58,6 +58,7 @@ export class DocumentEditorComponent
   private placeholderCleared = false;
   private pendingSelectionOffset: number | null = null;
   private selectedImageEditor?: Editor;
+  private selectedImagePos: number | null = null;
   private imageAssets = new Map<string, EditorAsset>();
   textColor = '#000000';
   highlightColor = '#fff59d';
@@ -229,6 +230,10 @@ export class DocumentEditorComponent
       this.selectedImageEditor = this.editors.find((editor) =>
         editor.view.dom.contains(target),
       );
+      this.selectedImagePos = this.selectedImageEditor?.view.posAtDOM(
+        target,
+        0,
+      ) ?? null;
       this.selectedImageSize = this.estimateImagePercentage(target);
       return;
     }
@@ -262,16 +267,22 @@ export class DocumentEditorComponent
       this.selectedImage.removeAttribute('height');
     }
 
-    this.selectedImageEditor
-      .chain()
-      .focus()
-      .updateAttributes('image', attributes)
-      .run();
+    const selectionPos =
+      this.selectedImagePos ??
+      this.selectedImageEditor.view.posAtDOM(this.selectedImage, 0);
+
+    let chain = this.selectedImageEditor.chain().focus();
+    if (typeof selectionPos === 'number') {
+      chain = chain.setNodeSelection(selectionPos);
+    }
+
+    chain.updateAttributes('image', attributes).run();
   }
 
   clearImageSelection() {
     this.selectedImage = null;
     this.selectedImageEditor = undefined;
+    this.selectedImagePos = null;
   }
 
   private getMaxImageWidth(): number {

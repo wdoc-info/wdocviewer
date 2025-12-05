@@ -158,6 +158,11 @@
   border: 1px solid #d0d7de;
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  position: sticky;
+  top: 72px;
+  z-index: 6;
+  align-self: flex-start;
+  margin-left: 4px;
 }
 
 .image-size-bar input[type='range'] {
