@@ -11,12 +11,23 @@ import {
   SimpleChanges,
   Output,
   QueryList,
+  ViewChild,
   ViewChildren,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Level } from '@tiptap/extension-heading';
+import Color from '@tiptap/extension-color';
+import Highlight from '@tiptap/extension-highlight';
+import TipTapImage from '@tiptap/extension-image';
+import { TextStyle } from '@tiptap/extension-text-style';
+
+export interface EditorAsset {
+  objectUrl: string;
+  path: string;
+  file: File;
+}
 
 @Component({
   selector: 'app-document-editor',
@@ -31,7 +42,9 @@ export class DocumentEditorComponent
 {
   @Input() content = '<p>Start writing...</p>';
   @Output() contentChange = new EventEmitter<string>();
+  @Output() assetsChange = new EventEmitter<EditorAsset[]>();
   @ViewChildren('pageHost') pageHosts?: QueryList<ElementRef<HTMLElement>>;
+  @ViewChild('imageInput') imageInput?: ElementRef<HTMLInputElement>;
 
   private editors: Editor[] = [];
   private pendingExternalUpdate = false;
@@ -44,6 +57,14 @@ export class DocumentEditorComponent
   private paginationRaf = 0;
   private placeholderCleared = false;
   private pendingSelectionOffset: number | null = null;
+  private selectedImageEditor?: Editor;
+  private selectedImagePos: number | null = null;
+  private imageAssets = new Map<string, EditorAsset>();
+  textColor = '#000000';
+  highlightColor = '#fff59d';
+  selectedImage: HTMLImageElement | null = null;
+  selectedImageSize = 100;
+  readonly headingLevels: Level[] = [1, 2, 3, 4, 5, 6];
 
   get editor(): Editor | undefined {
     return this.editors[0];
@@ -81,6 +102,7 @@ export class DocumentEditorComponent
   }
 
   ngOnDestroy(): void {
+    this.imageAssets.forEach((asset) => URL.revokeObjectURL(asset.objectUrl));
     this.editors.forEach((editor) => editor.destroy());
     this.editors = [];
     this.resizeObservers.forEach((observer) => observer.disconnect());
@@ -109,6 +131,205 @@ export class DocumentEditorComponent
 
   setHeading(level: Level) {
     this.editors[0]?.chain().focus().toggleHeading({ level }).run();
+  }
+
+  applyTextColor(color: string) {
+    this.textColor = color;
+    this.editors[0]?.chain().focus().setColor(color).run();
+  }
+
+  applyHighlight(color: string) {
+    this.highlightColor = color;
+    this.editors[0]?.chain().focus().setHighlight({ color }).run();
+  }
+
+  clearHighlight() {
+    this.editors[0]?.chain().focus().unsetHighlight().run();
+  }
+
+  openImagePicker() {
+    this.imageInput?.nativeElement.click();
+  }
+
+  onImageSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const objectUrl = URL.createObjectURL(file);
+      const assetPath = this.registerAsset(file, objectUrl);
+
+      const previewImage = new window.Image();
+      previewImage.onload = () => {
+        const { width, height } = this.constrainImageDimensions(
+          previewImage.naturalWidth,
+          previewImage.naturalHeight,
+        );
+
+        const imageAttributes: Record<string, unknown> = {
+          src: objectUrl,
+          alt: file.name,
+          width,
+          height,
+          'data-asset-src': assetPath,
+        };
+
+        this.editors[0]
+          ?.chain()
+          .focus()
+          .setImage(imageAttributes as any)
+          .run();
+      };
+
+      previewImage.src = objectUrl;
+
+      if (this.imageInput?.nativeElement) {
+        this.imageInput.nativeElement.value = '';
+      }
+    };
+
+    reader.readAsDataURL(file);
+  }
+
+  private registerAsset(file: File, objectUrl: string): string {
+    const assetPath = this.buildAssetPath(file.name);
+    this.imageAssets.set(objectUrl, { objectUrl, path: assetPath, file });
+    this.assetsChange.emit(Array.from(this.imageAssets.values()));
+    return assetPath;
+  }
+
+  private buildAssetPath(name: string): string {
+    const trimmed = name.trim() || 'image';
+    const lastDot = trimmed.lastIndexOf('.');
+    const base = lastDot > 0 ? trimmed.slice(0, lastDot) : trimmed;
+    const extension = lastDot > 0 ? trimmed.slice(lastDot) : '';
+    let candidate = `wdoc-assets/${trimmed}`;
+    let counter = 1;
+
+    const existingPaths = new Set(
+      Array.from(this.imageAssets.values()).map((asset) => asset.path),
+    );
+
+    while (existingPaths.has(candidate)) {
+      candidate = `wdoc-assets/${base}-${counter}${extension}`;
+      counter += 1;
+    }
+
+    return candidate;
+  }
+
+  handleEditorClick(event: Event) {
+    const target = event.target as HTMLElement;
+    if (target instanceof HTMLImageElement) {
+      this.selectedImage = target;
+      this.selectedImageEditor = this.editors.find((editor) =>
+        editor.view.dom.contains(target),
+      );
+      this.selectedImagePos = this.selectedImageEditor?.view.posAtDOM(
+        target,
+        0,
+      ) ?? null;
+      this.selectedImageSize = this.estimateImagePercentage(target);
+      return;
+    }
+
+    this.clearImageSelection();
+  }
+
+  onImageSizeChange(value: number | string) {
+    if (!this.selectedImage || !this.selectedImageEditor) {
+      return;
+    }
+
+    const parsed = Math.max(10, Math.min(100, Number(value)));
+    this.selectedImageSize = parsed;
+
+    const { width, height } = this.constrainImageDimensions(
+      this.selectedImage.naturalWidth,
+      this.selectedImage.naturalHeight,
+      parsed,
+    );
+
+    const attributes: { width: number; height?: number } = { width };
+    if (height !== undefined) {
+      attributes['height'] = height;
+    }
+
+    this.selectedImage.width = width;
+    if (height !== undefined) {
+      this.selectedImage.height = height;
+    } else {
+      this.selectedImage.removeAttribute('height');
+    }
+
+    const selectionPos =
+      this.selectedImagePos ??
+      this.selectedImageEditor.view.posAtDOM(this.selectedImage, 0);
+
+    let chain = this.selectedImageEditor.chain().focus();
+    if (typeof selectionPos === 'number') {
+      chain = chain.setNodeSelection(selectionPos);
+    }
+
+    chain.updateAttributes('image', attributes).run();
+  }
+
+  clearImageSelection() {
+    this.selectedImage = null;
+    this.selectedImageEditor = undefined;
+    this.selectedImagePos = null;
+  }
+
+  private getMaxImageWidth(): number {
+    return Math.max(0, this.pageWidth - this.pagePadding * 2);
+  }
+
+  private getMaxImageHeight(): number {
+    return Math.max(0, this.pageHeight - this.pagePadding * 2);
+  }
+
+  private constrainImageDimensions(
+    width: number,
+    height: number,
+    percentage = 100,
+  ): { width: number; height?: number } {
+    const maxWidth = (this.getMaxImageWidth() * Math.max(percentage, 10)) / 100;
+    const maxHeight = (this.getMaxImageHeight() * Math.max(percentage, 10)) / 100;
+
+    if (!width || !height) {
+      return {
+        width: Math.floor(maxWidth),
+        height: Math.floor(maxHeight),
+      };
+    }
+
+    const scale = Math.min(1, maxWidth / width, maxHeight / height);
+    const constrainedWidth = Math.floor(width * scale);
+    const constrainedHeight = Math.floor(height * scale);
+
+    return {
+      width: constrainedWidth,
+      height: constrainedHeight,
+    };
+  }
+
+  private estimateImagePercentage(image: HTMLImageElement): number {
+    const maxWidth = this.getMaxImageWidth();
+    const rawWidth = image.getAttribute('width')
+      ? Number(image.getAttribute('width'))
+      : image.clientWidth || maxWidth;
+
+    if (!rawWidth || !maxWidth) {
+      return 100;
+    }
+
+    const percentage = Math.round((rawWidth / maxWidth) * 100);
+    return Math.min(100, Math.max(10, percentage));
   }
 
   isActive(name: string, attrs?: Record<string, unknown>) {
@@ -231,10 +452,89 @@ export class DocumentEditorComponent
   }
 
   private createEditor(element: HTMLElement, content: string, index: number): Editor {
-    return new Editor({
+    let instance: Editor;
+
+    const PageImage = TipTapImage.extend({
+      addAttributes() {
+        return {
+          ...this.parent?.(),
+          width: {
+            default: null,
+            parseHTML: (element: HTMLElement) => element.getAttribute('width'),
+            renderHTML: (attributes: Record<string, unknown>) =>
+              attributes['width'] ? { width: attributes['width'] } : {},
+          },
+          height: {
+            default: null,
+            parseHTML: (element: HTMLElement) => element.getAttribute('height'),
+            renderHTML: (attributes: Record<string, unknown>) =>
+              attributes['height'] ? { height: attributes['height'] } : {},
+          },
+          'data-asset-src': {
+            default: null,
+            parseHTML: (element: HTMLElement) =>
+              element.getAttribute('data-asset-src'),
+            renderHTML: (attributes: Record<string, unknown>) =>
+              attributes['data-asset-src']
+                ? { 'data-asset-src': attributes['data-asset-src'] }
+                : {},
+          },
+        };
+      },
+    });
+
+    instance = new Editor({
       element,
-      extensions: [StarterKit],
+      extensions: [
+        StarterKit.configure({
+          heading: {
+            levels: this.headingLevels,
+          },
+        }),
+        TextStyle,
+        Color,
+        Highlight.configure({ multicolor: true }),
+        PageImage.configure({
+          inline: true,
+          allowBase64: true,
+          HTMLAttributes: { class: 'editor-image' },
+        }),
+      ],
       content,
+      editorProps: {
+        handleKeyDown: (view, event) => {
+          if (event.key === 'Enter') {
+            const activeMarks =
+              instance.state.storedMarks ?? instance.state.selection.$from.marks();
+            const activeTextColor = activeMarks?.find(
+              (mark) => mark.type.name === 'textStyle' && mark.attrs['color'],
+            )?.attrs['color'] as string | undefined;
+            const activeHighlight = activeMarks?.find(
+              (mark) => mark.type.name === 'highlight' && mark.attrs['color'],
+            )?.attrs['color'] as string | undefined;
+
+            const splitApplied = instance.commands.splitBlock();
+
+            if (splitApplied && (activeTextColor || activeHighlight)) {
+              const chain = instance.chain().focus();
+
+              if (activeTextColor) {
+                chain.setColor(activeTextColor);
+              }
+
+              if (activeHighlight) {
+                chain.setHighlight({ color: activeHighlight });
+              }
+
+              chain.run();
+            }
+
+            return splitApplied;
+          }
+
+          return false;
+        },
+      },
       onUpdate: ({ editor }) => {
         if (this.pendingExternalUpdate) {
           return;
@@ -261,6 +561,8 @@ export class DocumentEditorComponent
         }
       },
     });
+
+    return instance;
   }
 
   private calculateSelectionOffset(index: number, editor: Editor): number {

@@ -175,6 +175,7 @@ describe('AppComponent', () => {
       '1.0.0',
       'New document',
       'new-document.wdoc',
+      [],
     );
   });
 
@@ -232,6 +233,7 @@ describe('AppComponent', () => {
       '2.0.0',
       'New document',
       'new-document.wdoc',
+      [],
     );
   });
 

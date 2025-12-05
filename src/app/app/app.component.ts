@@ -24,7 +24,11 @@ import {
 } from '../services/wdoc-loader.service';
 import { DialogService } from '../services/dialog.service';
 import { DocumentEditorComponent } from '../editor/document-editor.component';
-import { DocumentCreatorService } from '../services/document-creator.service';
+import {
+  DocumentAsset,
+  DocumentCreatorService,
+} from '../services/document-creator.service';
+import { EditorAsset } from '../editor/document-editor.component';
 
 @Component({
   selector: 'app-root',
@@ -60,6 +64,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   private docVersionCounter = 0;
   private loadedDocumentHtml = '';
   private editableContentFromLoaded = '<p>Start writing...</p>';
+  private editorAssets: EditorAsset[] = [];
   private resizeListener?: () => void;
   private isDesktop = false;
   private beforePrintListener?: () => void;
@@ -370,6 +375,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showFormSave = false;
     this.showDocumentSave = false;
     this.editorContent = this.editableContentFromLoaded;
+    this.editorAssets = [];
     this.htmlContent = this.sanitizer.bypassSecurityTrustHtml(result.html);
     if (!this.isDesktop) {
       this.isNavOpen = false;
@@ -392,6 +398,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showDocumentSave = true;
     this.showFormSave = false;
     this.docVersionCounter = 0;
+    this.editorAssets = [];
     this.cdr.markForCheck();
   }
 
@@ -405,6 +412,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showFormSave = false;
     this.docVersionCounter = 0;
     this.editorContent = this.editableContentFromLoaded;
+    this.editorAssets = [];
     this.cdr.markForCheck();
   }
 
@@ -425,6 +433,12 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  onEditorAssetsChange(assets: EditorAsset[]): void {
+    this.editorAssets = assets;
+    this.showDocumentSave = true;
+    this.cdr.markForCheck();
+  }
+
   async onSaveNewDocument(): Promise<void> {
     const content = this.editorContent?.trim()
       ? this.editorContent
@@ -439,6 +453,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       docVersion,
       title,
       filename,
+      this.buildDocumentAssets(),
     );
     this.showDocumentSave = false;
   }
@@ -482,6 +497,14 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   private normalizeTitle(title: string): string {
     const normalized = title.trim();
     return normalized.length > 0 ? normalized : this.newDocumentTitle;
+  }
+
+  private buildDocumentAssets(): DocumentAsset[] {
+    return this.editorAssets.map((asset) => ({
+      path: asset.path,
+      file: asset.file,
+      objectUrl: asset.objectUrl,
+    }));
   }
 
   private updateWindowTitle(title: string): void {
