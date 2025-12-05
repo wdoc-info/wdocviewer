@@ -18,8 +18,12 @@ describe('WdocLoaderService', () => {
     htmlProcessor = jasmine.createSpyObj('HtmlProcessingService', [
       'processHtml',
     ]);
-    dialogService = jasmine.createSpyObj('DialogService', ['openAlert']);
+    dialogService = jasmine.createSpyObj('DialogService', [
+      'openAlert',
+      'openLoading',
+    ]);
     dialogService.openAlert.and.resolveTo();
+    dialogService.openLoading.and.returnValue(jasmine.createSpy('closeLoading'));
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [
