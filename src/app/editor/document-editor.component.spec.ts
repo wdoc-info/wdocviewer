@@ -83,6 +83,25 @@ describe('DocumentEditorComponent', () => {
     expect(component.highlightColor).toBe('#abcdef');
   });
 
+  it('persists text color and highlight when starting a new paragraph', async () => {
+    const editor = component.editor!;
+    editor.commands.setContent('<p>Colorful</p>');
+    editor.commands.selectAll();
+
+    component.applyTextColor('#112233');
+    component.applyHighlight('#aabbcc');
+
+    editor.commands.setTextSelection(editor.state.doc.content.size);
+    editor.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    editor.commands.insertContent('Carry styles');
+
+    await settle();
+
+    const html = editor.getHTML();
+    expect(html).toContain('rgb(17, 34, 51)');
+    expect(html).toContain('#aabbcc');
+  });
+
   it('opens the image picker when requested', () => {
     const click = jasmine.createSpy('click');
     component.imageInput = { nativeElement: { click } } as any;
@@ -90,5 +109,44 @@ describe('DocumentEditorComponent', () => {
     component.openImagePicker();
 
     expect(click).toHaveBeenCalled();
+  });
+
+  it('inserts an image when a file is chosen', async () => {
+    const editor = component.editor!;
+    const chain = jasmine.createSpyObj('chain', ['focus', 'setImage', 'run']);
+    chain.focus.and.returnValue(chain);
+    chain.setImage.and.returnValue(chain);
+    chain.run.and.returnValue(undefined);
+    spyOn(editor, 'chain').and.returnValue(chain as any);
+
+    const file = new File(['image-bytes'], 'photo.png', { type: 'image/png' });
+    const input = document.createElement('input');
+    Object.defineProperty(input, 'files', { value: [file] });
+    input.value = 'mock-path';
+    component.imageInput = { nativeElement: input } as any;
+
+    const OriginalReader = FileReader;
+    class MockReader {
+      result: string | ArrayBuffer | null = null;
+      onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null;
+      readAsDataURL() {
+        this.result = 'data:image/png;base64,stub';
+        this.onload?.call(this as any, {} as ProgressEvent<FileReader>);
+      }
+    }
+
+    (window as any).FileReader = MockReader as any;
+
+    component.onImageSelected({ target: input } as unknown as Event);
+
+    await settle();
+
+    expect(chain.setImage).toHaveBeenCalledWith({
+      src: 'data:image/png;base64,stub',
+      alt: 'photo.png',
+    });
+    expect(input.value).toBe('');
+
+    (window as any).FileReader = OriginalReader as any;
   });
 });

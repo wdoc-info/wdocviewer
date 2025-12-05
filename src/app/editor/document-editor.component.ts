@@ -280,7 +280,9 @@ export class DocumentEditorComponent
   }
 
   private createEditor(element: HTMLElement, content: string, index: number): Editor {
-    return new Editor({
+    let instance: Editor;
+
+    instance = new Editor({
       element,
       extensions: [
         StarterKit.configure({
@@ -291,9 +293,43 @@ export class DocumentEditorComponent
         TextStyle,
         Color,
         Highlight.configure({ multicolor: true }),
-        Image.configure({ inline: true }),
+        Image.configure({ inline: true, allowBase64: true }),
       ],
       content,
+      editorProps: {
+        handleKeyDown: (view, event) => {
+          if (event.key === 'Enter') {
+            const activeMarks =
+              instance.state.storedMarks ?? instance.state.selection.$from.marks();
+            const activeTextColor = activeMarks?.find(
+              (mark) => mark.type.name === 'textStyle' && mark.attrs['color'],
+            )?.attrs['color'] as string | undefined;
+            const activeHighlight = activeMarks?.find(
+              (mark) => mark.type.name === 'highlight' && mark.attrs['color'],
+            )?.attrs['color'] as string | undefined;
+
+            const splitApplied = instance.commands.splitBlock();
+
+            if (splitApplied && (activeTextColor || activeHighlight)) {
+              const chain = instance.chain().focus();
+
+              if (activeTextColor) {
+                chain.setColor(activeTextColor);
+              }
+
+              if (activeHighlight) {
+                chain.setHighlight({ color: activeHighlight });
+              }
+
+              chain.run();
+            }
+
+            return splitApplied;
+          }
+
+          return false;
+        },
+      },
       onUpdate: ({ editor }) => {
         if (this.pendingExternalUpdate) {
           return;
@@ -320,6 +356,8 @@ export class DocumentEditorComponent
         }
       },
     });
+
+    return instance;
   }
 
   private calculateSelectionOffset(index: number, editor: Editor): number {
