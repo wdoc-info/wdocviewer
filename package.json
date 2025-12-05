@@ -28,7 +28,7 @@
     "dompurify": "^3.3.0",
     "jsbarcode": "^3.12.1",
     "jszip": "^3.10.1",
-    "puppeteer": "^24.31.0",
+    "puppeteer": "^24.32.0",
     "qrcode": "^1.5.4",
     "rxjs": "~7.8.0",
     "tslib": "^2.8.1",

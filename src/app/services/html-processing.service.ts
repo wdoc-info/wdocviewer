@@ -3,13 +3,13 @@ import { HttpClient } from '@angular/common/http';
 import { lastValueFrom, firstValueFrom } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import DOMPurify from 'dompurify';
-import JSZip from 'jszip';
 import { HtmlPageSplitter } from '../pagination/html-pages/HtmlPageSplitter';
 import { FormManagerService } from './form-manager.service';
 import QRCode from 'qrcode';
 import { QRCodeToDataURLOptions } from 'qrcode';
 import JsBarcode from 'jsbarcode';
 import { ExternalImageDialogComponent } from './external-image-dialog.component';
+import { type ZipContainer } from './zip-reader';
 
 interface ProcessHtmlOptions {
   defaultTitle?: string;
@@ -55,7 +55,7 @@ export class HtmlProcessingService {
   }
 
   async processHtml(
-    zip: JSZip,
+    zip: ZipContainer,
     html: string,
     options: ProcessHtmlOptions = {},
   ): Promise<{ html: string; documentTitle: string }> {
@@ -95,7 +95,7 @@ export class HtmlProcessingService {
       const fileInZip = zip.file(normalizedSrc);
       if (fileInZip) {
         try {
-          const blobContent = await fileInZip.async('blob');
+          const blobContent = (await fileInZip.async('blob')) as Blob;
           const ext = normalizedSrc.split('.').pop()?.toLowerCase();
           let mime = 'image/png';
           if (ext === 'jpg' || ext === 'jpeg') {
@@ -134,7 +134,7 @@ export class HtmlProcessingService {
         const cssFile = zip.file(normalizedHref);
         if (cssFile) {
           try {
-            const cssContent = await cssFile.async('text');
+            const cssContent = (await cssFile.async('text')) as string;
             combinedCSS += cssContent + '\n';
           } catch (error) {
             console.error(`Error loading internal CSS file ${normalizedHref}:`, error);
