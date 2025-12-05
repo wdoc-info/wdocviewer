@@ -1,10 +1,10 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { lastValueFrom } from 'rxjs';
-import JSZip from 'jszip';
 import { HtmlProcessingService } from './html-processing.service';
 import { DialogService } from './dialog.service';
 import { ManifestSection, WdocManifest } from './manifest-builder';
+import { StreamedZip, type StreamedZipEntry } from './zip-reader';
 
 export interface WdocLoadResult {
   html: string;
@@ -54,14 +54,17 @@ export class WdocLoaderService {
     arrayBuffer: ArrayBuffer,
     defaultTitle = 'WDOC viewer',
   ): Promise<WdocLoadResult | null> {
+    const closeLoading = this.dialogService.openLoading('Please wait while the file is opening...');
     try {
-      const zip = await JSZip.loadAsync(arrayBuffer);
+      const zip = await StreamedZip.fromArrayBuffer(arrayBuffer);
       const manifestValid = await this.verifyContentManifest(zip);
       if (!manifestValid) {
+        closeLoading();
         return null;
       }
       const indexFile = this.findIndexFile(zip);
       if (!indexFile) {
+        closeLoading();
         await this.dialogService.openAlert(
           'index.html not found in the archive.',
           'Missing entry',
@@ -74,6 +77,7 @@ export class WdocLoaderService {
       });
       const attachments = await this.extractFiles(zip, 'wdoc-attachment');
       const formAnswers = await this.extractFiles(zip, 'wdoc-form');
+      closeLoading();
       return {
         html: processed.html,
         documentTitle: processed.documentTitle,
@@ -87,31 +91,30 @@ export class WdocLoaderService {
         'Error processing .wdoc file.',
         'Processing error',
       );
+      closeLoading();
       return null;
     }
   }
 
-  private findIndexFile(zip: JSZip): JSZip.JSZipObject | null {
+  private findIndexFile(zip: StreamedZip): StreamedZipEntry | null {
     let indexFile = zip.file('index.html');
     if (!indexFile) {
-      const firstFolder = Object.keys(zip.files)
-        .filter((path) => {
-          const entry = zip.files[path];
-          return (
-            entry.dir &&
-            path.endsWith('/') &&
-            !path.slice(0, -1).includes('/')
-          );
-        })
-        .sort()[0];
-      if (firstFolder) {
-        indexFile = zip.file(`${firstFolder}index.html`);
+      const folderNames = new Set<string>();
+      for (const entry of zip.entries()) {
+        if (entry.dir) {
+          const segments = entry.name.split('/').filter(Boolean);
+          if (segments.length === 1) {
+            folderNames.add(`${segments[0]}/`);
+          }
+        }
       }
+      const firstFolder = Array.from(folderNames).sort()[0];
+      indexFile = firstFolder ? zip.file(`${firstFolder}index.html`) : null;
     }
     return indexFile ?? null;
   }
 
-  private async verifyContentManifest(zip: JSZip): Promise<boolean> {
+  private async verifyContentManifest(zip: StreamedZip): Promise<boolean> {
     const manifestFile = zip.file('manifest.json');
     if (!manifestFile) {
       return true;
@@ -119,7 +122,7 @@ export class WdocLoaderService {
 
     let manifest: any;
     try {
-      const manifestText = await manifestFile.async('text');
+      const manifestText = (await manifestFile.async('text')) as string;
       manifest = JSON.parse(manifestText);
     } catch (error) {
       console.error('Failed to parse manifest.json', error);
@@ -166,7 +169,7 @@ export class WdocLoaderService {
   }
 
   private async extractFiles(
-    zip: JSZip,
+    zip: StreamedZip,
     folderName: string,
     predicate: (name: string) => boolean = () => true,
   ): Promise<LoadedFile[]> {
@@ -179,13 +182,13 @@ export class WdocLoaderService {
       (path, file) =>
         !file.dir && !this.isNoiseFile(path) && predicate(path),
     );
-    const root: string | undefined = (folder as any).root;
+    const root: string | undefined = folder.root;
     const files: LoadedFile[] = [];
 
     for (const entry of entries) {
       const relativeName =
         root && entry.name.startsWith(root) ? entry.name.slice(root.length) : entry.name;
-      const buffer = await entry.async('arraybuffer');
+      const buffer = (await entry.async('arraybuffer')) as ArrayBuffer;
       const mime = this.guessMimeType(relativeName);
       const blob = new Blob([buffer], mime ? { type: mime } : undefined);
       files.push({ name: relativeName, blob });
@@ -272,7 +275,7 @@ export class WdocLoaderService {
       }
 
       try {
-        const data = await entry.async('uint8array');
+        const data = (await entry.async('uint8array')) as Uint8Array;
         const sha256 = await WdocLoaderService.computeSha256(data);
         if (sha256 !== expectedHash) {
           mismatches.push(path);

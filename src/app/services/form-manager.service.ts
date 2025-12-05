@@ -8,12 +8,13 @@ import {
   serializeManifest,
 } from './manifest-builder';
 import { AuthService } from './auth.service';
+import { type ZipContainer } from './zip-reader';
 
 @Injectable({ providedIn: 'root' })
 export class FormManagerService {
   constructor(private authService: AuthService) {}
 
-  async populateFormsFromZip(zip: JSZip, doc: Document): Promise<void> {
+  async populateFormsFromZip(zip: ZipContainer, doc: Document): Promise<void> {
     const formsFolder = zip.folder('wdoc-form');
     if (!formsFolder) {
       return;
@@ -28,7 +29,7 @@ export class FormManagerService {
         root && entry.name.startsWith(root) ? entry.name.slice(root.length) : entry.name;
       let data: Record<string, string>;
       try {
-        data = JSON.parse(await entry.async('text'));
+        data = JSON.parse((await entry.async('text')) as string);
       } catch {
         continue;
       }
@@ -73,7 +74,7 @@ export class FormManagerService {
             const fileEntry = formsFolder.file(value);
             if (fileEntry) {
               const mime = this.guessMimeType(value);
-              const buffer = await fileEntry.async('arraybuffer');
+              const buffer = (await fileEntry.async('arraybuffer')) as ArrayBuffer;
               const blob = new Blob([buffer], mime ? { type: mime } : undefined);
               const url = URL.createObjectURL(blob);
               const link = doc.createElement('a');
