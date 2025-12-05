@@ -43,7 +43,29 @@
     </label>
   </div>
 
-  <wdoc-container class="editor-container">
+  <div
+    *ngIf="selectedImage"
+    class="image-size-bar"
+    role="group"
+    aria-label="Image size controls"
+  >
+    <span class="image-size-label">Image size</span>
+    <input
+      type="range"
+      min="10"
+      max="100"
+      step="5"
+      [value]="selectedImageSize"
+      (input)="onImageSizeChange($any($event.target).value)"
+      aria-label="Image size percentage"
+    />
+    <span class="image-size-value">{{ selectedImageSize }}%</span>
+    <button type="button" class="muted" (click)="clearImageSelection()">
+      Close
+    </button>
+  </div>
+
+  <wdoc-container class="editor-container" (click)="handleEditorClick($event)">
     <wdoc-content class="editor-content">
       <div class="page-list">
         @for (page of pageContents; let i = $index; track i) {

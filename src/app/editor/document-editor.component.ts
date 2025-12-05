@@ -20,7 +20,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { Level } from '@tiptap/extension-heading';
 import Color from '@tiptap/extension-color';
 import Highlight from '@tiptap/extension-highlight';
-import Image from '@tiptap/extension-image';
+import TipTapImage from '@tiptap/extension-image';
 import { TextStyle } from '@tiptap/extension-text-style';
 
 @Component({
@@ -50,8 +50,11 @@ export class DocumentEditorComponent
   private paginationRaf = 0;
   private placeholderCleared = false;
   private pendingSelectionOffset: number | null = null;
+  private selectedImageEditor?: Editor;
   textColor = '#000000';
   highlightColor = '#fff59d';
+  selectedImage: HTMLImageElement | null = null;
+  selectedImageSize = 100;
   readonly headingLevels: Level[] = [1, 2, 3, 4, 5, 6];
 
   get editor(): Editor | undefined {
@@ -150,14 +153,121 @@ export class DocumentEditorComponent
     reader.onload = () => {
       const src = typeof reader.result === 'string' ? reader.result : '';
       if (src) {
-        this.editors[0]?.chain().focus().setImage({ src, alt: file.name }).run();
+        const previewImage = new window.Image();
+        previewImage.onload = () => {
+          const { width, height } = this.constrainImageDimensions(
+            previewImage.naturalWidth,
+            previewImage.naturalHeight,
+          );
+
+          this.editors[0]
+            ?.chain()
+            .focus()
+            .setImage({ src, alt: file.name, width, height })
+            .run();
+        };
+
+        previewImage.src = src;
       }
+
       if (this.imageInput?.nativeElement) {
         this.imageInput.nativeElement.value = '';
       }
     };
 
     reader.readAsDataURL(file);
+  }
+
+  handleEditorClick(event: Event) {
+    const target = event.target as HTMLElement;
+    if (target instanceof HTMLImageElement) {
+      this.selectedImage = target;
+      this.selectedImageEditor = this.editors.find((editor) =>
+        editor.view.dom.contains(target),
+      );
+      this.selectedImageSize = this.estimateImagePercentage(target);
+      return;
+    }
+
+    this.clearImageSelection();
+  }
+
+  onImageSizeChange(value: number | string) {
+    if (!this.selectedImage || !this.selectedImageEditor) {
+      return;
+    }
+
+    const parsed = Math.max(10, Math.min(100, Number(value)));
+    this.selectedImageSize = parsed;
+
+    const { width, height } = this.constrainImageDimensions(
+      this.selectedImage.naturalWidth,
+      this.selectedImage.naturalHeight,
+      parsed,
+    );
+
+    const attributes: { width: number; height?: number } = { width };
+    if (height !== undefined) {
+      attributes['height'] = height;
+    }
+
+    this.selectedImageEditor
+      .chain()
+      .focus()
+      .updateAttributes('image', attributes)
+      .run();
+  }
+
+  clearImageSelection() {
+    this.selectedImage = null;
+    this.selectedImageEditor = undefined;
+  }
+
+  private getMaxImageWidth(): number {
+    return Math.max(0, this.pageWidth - this.pagePadding * 2);
+  }
+
+  private getMaxImageHeight(): number {
+    return Math.max(0, this.pageHeight - this.pagePadding * 2);
+  }
+
+  private constrainImageDimensions(
+    width: number,
+    height: number,
+    percentage = 100,
+  ): { width: number; height?: number } {
+    const maxWidth = (this.getMaxImageWidth() * Math.max(percentage, 10)) / 100;
+    const maxHeight = (this.getMaxImageHeight() * Math.max(percentage, 10)) / 100;
+
+    if (!width || !height) {
+      return {
+        width: Math.floor(maxWidth),
+        height: Math.floor(maxHeight),
+      };
+    }
+
+    const scale = Math.min(1, maxWidth / width, maxHeight / height);
+    const constrainedWidth = Math.floor(width * scale);
+    const constrainedHeight = Math.floor(height * scale);
+
+    return {
+      width: constrainedWidth,
+      height: constrainedHeight,
+    };
+  }
+
+  private estimateImagePercentage(image: HTMLImageElement): number {
+    const maxWidth = this.getMaxImageWidth();
+    const rawWidth = image.getAttribute('width')
+      ? Number(image.getAttribute('width'))
+      : image.clientWidth || maxWidth;
+
+    if (!rawWidth || !maxWidth) {
+      return 100;
+    }
+
+    const percentage = Math.round((rawWidth / maxWidth) * 100);
+    return Math.min(100, Math.max(10, percentage));
   }
 
   isActive(name: string, attrs?: Record<string, unknown>) {
@@ -282,6 +392,20 @@ export class DocumentEditorComponent
   private createEditor(element: HTMLElement, content: string, index: number): Editor {
     let instance: Editor;
 
+    const PageImage = TipTapImage.extend({
+      addAttributes() {
+        return {
+          ...this.parent?.(),
+          width: {
+            default: null,
+          },
+          height: {
+            default: null,
+          },
+        };
+      },
+    });
+
     instance = new Editor({
       element,
       extensions: [
@@ -293,7 +417,11 @@ export class DocumentEditorComponent
         TextStyle,
         Color,
         Highlight.configure({ multicolor: true }),
-        Image.configure({ inline: true, allowBase64: true }),
+        PageImage.configure({
+          inline: true,
+          allowBase64: true,
+          HTMLAttributes: { class: 'editor-image' },
+        }),
       ],
       content,
       editorProps: {

@@ -137,6 +137,19 @@ describe('DocumentEditorComponent', () => {
 
     (window as any).FileReader = MockReader as any;
 
+    const OriginalImage = (window as any).Image;
+
+    class MockImage {
+      naturalWidth = 2000;
+      naturalHeight = 1500;
+      onload: (() => void) | null = null;
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+
+    (window as any).Image = MockImage as any;
+
     component.onImageSelected({ target: input } as unknown as Event);
 
     await settle();
@@ -144,9 +157,36 @@ describe('DocumentEditorComponent', () => {
     expect(chain.setImage).toHaveBeenCalledWith({
       src: 'data:image/png;base64,stub',
       alt: 'photo.png',
+      width: jasmine.any(Number),
+      height: jasmine.any(Number),
     });
     expect(input.value).toBe('');
 
+    (window as any).Image = OriginalImage as any;
     (window as any).FileReader = OriginalReader as any;
+  });
+
+  it('resizes a selected image within page bounds', async () => {
+    const editor = component.editor!;
+    editor.commands.setContent('<img src="data:image/png;base64,abc" alt="image" />');
+    await settle();
+
+    const renderedImage = editor.view.dom.querySelector('img') as HTMLImageElement;
+    Object.defineProperty(renderedImage, 'naturalWidth', { value: 1200 });
+    Object.defineProperty(renderedImage, 'naturalHeight', { value: 900 });
+
+    const chain = jasmine.createSpyObj('chain', ['focus', 'updateAttributes', 'run']);
+    chain.focus.and.returnValue(chain);
+    chain.updateAttributes.and.returnValue(chain);
+    spyOn(editor, 'chain').and.returnValue(chain as any);
+
+    component.handleEditorClick({ target: renderedImage } as any);
+    component.onImageSizeChange('50');
+
+    expect(component.selectedImageSize).toBe(50);
+    expect(chain.updateAttributes).toHaveBeenCalledWith('image', {
+      width: jasmine.any(Number),
+      height: jasmine.any(Number),
+    });
   });
 });

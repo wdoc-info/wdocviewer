@@ -132,6 +132,42 @@
   min-height: calc(var(--page-height) - var(--page-padding) * 2);
 }
 
+.editor-surface img,
+.editor-surface .editor-image {
+  display: block;
+  max-width: calc(var(--page-width) - var(--page-padding) * 2);
+  max-height: calc(var(--page-height) - var(--page-padding) * 2);
+  height: auto;
+  object-fit: contain;
+  cursor: pointer;
+}
+
+.image-size-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.image-size-bar input[type='range'] {
+  accent-color: #312e81;
+}
+
+.image-size-label {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.image-size-value {
+  min-width: 42px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .editor-wrapper :focus-visible {
   outline: none;
 }
