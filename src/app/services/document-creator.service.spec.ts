@@ -2,7 +2,10 @@ import { TestBed } from '@angular/core/testing';
 import JSZip from 'jszip';
 import { APP_VERSION } from '../config/app.config';
 import { AuthService } from './auth.service';
-import { DocumentCreatorService } from './document-creator.service';
+import {
+  DocumentAsset,
+  DocumentCreatorService,
+} from './document-creator.service';
 import { WdocManifest } from './manifest-builder';
 
 describe('DocumentCreatorService', () => {
@@ -71,6 +74,7 @@ describe('DocumentCreatorService', () => {
       '2.0.0',
       'Custom Title',
       'custom-name.wdoc',
+      [],
     );
 
     expect(createObjectUrlSpy).toHaveBeenCalled();
@@ -98,6 +102,30 @@ describe('DocumentCreatorService', () => {
     expect(anchor).toBeTruthy();
     expect(anchor!.download).toBe('fancy-title.wdoc');
     expect(anchor!.click).toHaveBeenCalled();
+  });
+
+  it('stores assets under wdoc-assets and rewrites image sources', async () => {
+    const assets: DocumentAsset[] = [
+      {
+        path: 'wdoc-assets/photo.png',
+        file: new Blob(['image-bytes'], { type: 'image/png' }),
+        objectUrl: 'blob:photo',
+      },
+    ];
+
+    const blob = await service.buildWdocBlob(
+      '<p><img src="blob:photo" data-asset-src="wdoc-assets/photo.png" /></p>',
+      '1.0.0',
+      'Photo Doc',
+      assets,
+    );
+
+    const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+    const assetFile = zip.file('wdoc-assets/photo.png');
+    const indexContent = await zip.file('index.html')!.async('text');
+
+    expect(assetFile).toBeTruthy();
+    expect(indexContent).toContain('src="wdoc-assets/photo.png"');
   });
 
   it('includes all document files in manifest content and runtime sections', async () => {

@@ -23,6 +23,12 @@ import Highlight from '@tiptap/extension-highlight';
 import TipTapImage from '@tiptap/extension-image';
 import { TextStyle } from '@tiptap/extension-text-style';
 
+export interface EditorAsset {
+  objectUrl: string;
+  path: string;
+  file: File;
+}
+
 @Component({
   selector: 'app-document-editor',
   standalone: true,
@@ -36,6 +42,7 @@ export class DocumentEditorComponent
 {
   @Input() content = '<p>Start writing...</p>';
   @Output() contentChange = new EventEmitter<string>();
+  @Output() assetsChange = new EventEmitter<EditorAsset[]>();
   @ViewChildren('pageHost') pageHosts?: QueryList<ElementRef<HTMLElement>>;
   @ViewChild('imageInput') imageInput?: ElementRef<HTMLInputElement>;
 
@@ -51,6 +58,7 @@ export class DocumentEditorComponent
   private placeholderCleared = false;
   private pendingSelectionOffset: number | null = null;
   private selectedImageEditor?: Editor;
+  private imageAssets = new Map<string, EditorAsset>();
   textColor = '#000000';
   highlightColor = '#fff59d';
   selectedImage: HTMLImageElement | null = null;
@@ -93,6 +101,7 @@ export class DocumentEditorComponent
   }
 
   ngOnDestroy(): void {
+    this.imageAssets.forEach((asset) => URL.revokeObjectURL(asset.objectUrl));
     this.editors.forEach((editor) => editor.destroy());
     this.editors = [];
     this.resizeObservers.forEach((observer) => observer.disconnect());
@@ -151,24 +160,32 @@ export class DocumentEditorComponent
 
     const reader = new FileReader();
     reader.onload = () => {
-      const src = typeof reader.result === 'string' ? reader.result : '';
-      if (src) {
-        const previewImage = new window.Image();
-        previewImage.onload = () => {
-          const { width, height } = this.constrainImageDimensions(
-            previewImage.naturalWidth,
-            previewImage.naturalHeight,
-          );
+      const objectUrl = URL.createObjectURL(file);
+      const assetPath = this.registerAsset(file, objectUrl);
 
-          this.editors[0]
-            ?.chain()
-            .focus()
-            .setImage({ src, alt: file.name, width, height })
-            .run();
+      const previewImage = new window.Image();
+      previewImage.onload = () => {
+        const { width, height } = this.constrainImageDimensions(
+          previewImage.naturalWidth,
+          previewImage.naturalHeight,
+        );
+
+        const imageAttributes: Record<string, unknown> = {
+          src: objectUrl,
+          alt: file.name,
+          width,
+          height,
+          'data-asset-src': assetPath,
         };
 
-        previewImage.src = src;
-      }
+        this.editors[0]
+          ?.chain()
+          .focus()
+          .setImage(imageAttributes as any)
+          .run();
+      };
+
+      previewImage.src = objectUrl;
 
       if (this.imageInput?.nativeElement) {
         this.imageInput.nativeElement.value = '';
@@ -176,6 +193,33 @@ export class DocumentEditorComponent
     };
 
     reader.readAsDataURL(file);
+  }
+
+  private registerAsset(file: File, objectUrl: string): string {
+    const assetPath = this.buildAssetPath(file.name);
+    this.imageAssets.set(objectUrl, { objectUrl, path: assetPath, file });
+    this.assetsChange.emit(Array.from(this.imageAssets.values()));
+    return assetPath;
+  }
+
+  private buildAssetPath(name: string): string {
+    const trimmed = name.trim() || 'image';
+    const lastDot = trimmed.lastIndexOf('.');
+    const base = lastDot > 0 ? trimmed.slice(0, lastDot) : trimmed;
+    const extension = lastDot > 0 ? trimmed.slice(lastDot) : '';
+    let candidate = `wdoc-assets/${trimmed}`;
+    let counter = 1;
+
+    const existingPaths = new Set(
+      Array.from(this.imageAssets.values()).map((asset) => asset.path),
+    );
+
+    while (existingPaths.has(candidate)) {
+      candidate = `wdoc-assets/${base}-${counter}${extension}`;
+      counter += 1;
+    }
+
+    return candidate;
   }
 
   handleEditorClick(event: Event) {
@@ -209,6 +253,13 @@ export class DocumentEditorComponent
     const attributes: { width: number; height?: number } = { width };
     if (height !== undefined) {
       attributes['height'] = height;
+    }
+
+    this.selectedImage.width = width;
+    if (height !== undefined) {
+      this.selectedImage.height = height;
+    } else {
+      this.selectedImage.removeAttribute('height');
     }
 
     this.selectedImageEditor
@@ -398,9 +449,24 @@ export class DocumentEditorComponent
           ...this.parent?.(),
           width: {
             default: null,
+            parseHTML: (element: HTMLElement) => element.getAttribute('width'),
+            renderHTML: (attributes: Record<string, unknown>) =>
+              attributes['width'] ? { width: attributes['width'] } : {},
           },
           height: {
             default: null,
+            parseHTML: (element: HTMLElement) => element.getAttribute('height'),
+            renderHTML: (attributes: Record<string, unknown>) =>
+              attributes['height'] ? { height: attributes['height'] } : {},
+          },
+          'data-asset-src': {
+            default: null,
+            parseHTML: (element: HTMLElement) =>
+              element.getAttribute('data-asset-src'),
+            renderHTML: (attributes: Record<string, unknown>) =>
+              attributes['data-asset-src']
+                ? { 'data-asset-src': attributes['data-asset-src'] }
+                : {},
           },
         };
       },

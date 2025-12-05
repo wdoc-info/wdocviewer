@@ -8,6 +8,12 @@ import {
   serializeManifest,
 } from './manifest-builder';
 
+export interface DocumentAsset {
+  path: string;
+  file: Blob;
+  objectUrl?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class DocumentCreatorService {
   constructor(private authService: AuthService) {}
@@ -17,11 +23,17 @@ export class DocumentCreatorService {
     docVersion: string,
     docTitle: string,
     filename?: string,
+    assets: DocumentAsset[] = [],
   ) {
     const normalizedTitle = docTitle?.trim() || 'WDOC document';
     const resolvedFilename =
       filename ?? `${this.buildFilenameFromTitle(normalizedTitle)}.wdoc`;
-    const blob = await this.buildWdocBlob(html, docVersion, normalizedTitle);
+    const blob = await this.buildWdocBlob(
+      html,
+      docVersion,
+      normalizedTitle,
+      assets,
+    );
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = resolvedFilename;
@@ -33,14 +45,49 @@ export class DocumentCreatorService {
     html: string,
     docVersion: string,
     docTitle: string,
+    assets: DocumentAsset[] = [],
   ): Promise<Blob> {
     const zip = new JSZip();
-    const wrapped = this.wrapHtml(html, docTitle);
+    const normalizedHtml = this.replaceAssetUrls(html, assets);
+    const wrapped = this.wrapHtml(normalizedHtml, docTitle);
     zip.file('index.html', wrapped);
     zip.folder('wdoc-form');
+    const assetsFolder = zip.folder('wdoc-assets');
+    assets.forEach((asset) => {
+      const cleanedPath = asset.path.replace(/^wdoc-assets\//, '');
+      assetsFolder?.file(cleanedPath, asset.file);
+    });
     const manifest = await this.generateManifest(zip, docVersion, docTitle);
     zip.file('manifest.json', manifest);
     return zip.generateAsync({ type: 'blob' });
+  }
+
+  private replaceAssetUrls(
+    html: string,
+    assets: DocumentAsset[],
+  ): string {
+    if (!assets?.length) {
+      return html;
+    }
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const assetMap = new Map<string, string>(
+      assets.map((asset) => [asset.objectUrl ?? asset.path, asset.path]),
+    );
+
+    Array.from(doc.querySelectorAll('img')).forEach((img) => {
+      const dataSrc = img.getAttribute('data-asset-src');
+      const src = img.getAttribute('src') || '';
+      const replacement =
+        (dataSrc && assetMap.get(dataSrc)) || assetMap.get(src);
+
+      if (replacement) {
+        img.setAttribute('src', replacement);
+      }
+    });
+
+    return doc.body.innerHTML || '';
   }
 
   private wrapHtml(content: string, title: string): string {

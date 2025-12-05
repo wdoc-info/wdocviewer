@@ -20,6 +20,13 @@
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #f8fafc;
+  padding: 12px;
+  margin: -12px -12px 0;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.06);
 }
 
 .editor-toolbar button {

@@ -27,6 +27,7 @@ describe('DocumentEditorComponent', () => {
 
   it('emits content changes when the document updates', async () => {
     const emitSpy = spyOn(component.contentChange, 'emit');
+    spyOn(component.assetsChange, 'emit');
     component.editor?.commands.setContent('<p>Updated</p>');
     await flushRaf();
     expect(emitSpy).toHaveBeenCalled();
@@ -118,6 +119,8 @@ describe('DocumentEditorComponent', () => {
     chain.setImage.and.returnValue(chain);
     chain.run.and.returnValue(undefined);
     spyOn(editor, 'chain').and.returnValue(chain as any);
+    const assetsSpy = spyOn(component.assetsChange, 'emit');
+    spyOn(URL, 'createObjectURL').and.returnValue('blob:url');
 
     const file = new File(['image-bytes'], 'photo.png', { type: 'image/png' });
     const input = document.createElement('input');
@@ -155,12 +158,14 @@ describe('DocumentEditorComponent', () => {
     await settle();
 
     expect(chain.setImage).toHaveBeenCalledWith({
-      src: 'data:image/png;base64,stub',
+      src: 'blob:url',
       alt: 'photo.png',
       width: jasmine.any(Number),
       height: jasmine.any(Number),
+      'data-asset-src': 'wdoc-assets/photo.png',
     });
     expect(input.value).toBe('');
+    expect(assetsSpy).toHaveBeenCalled();
 
     (window as any).Image = OriginalImage as any;
     (window as any).FileReader = OriginalReader as any;
@@ -188,5 +193,6 @@ describe('DocumentEditorComponent', () => {
       width: jasmine.any(Number),
       height: jasmine.any(Number),
     });
+    expect(renderedImage.width).toBeGreaterThan(0);
   });
 });

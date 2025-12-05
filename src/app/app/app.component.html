@@ -37,6 +37,7 @@
         <app-document-editor
           [content]="editorContent"
           (contentChange)="onEditorContentChange($event)"
+          (assetsChange)="onEditorAssetsChange($event)"
         ></app-document-editor>
       } @else {
         <app-viewer
