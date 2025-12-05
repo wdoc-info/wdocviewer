@@ -11,12 +11,17 @@ import {
   SimpleChanges,
   Output,
   QueryList,
+  ViewChild,
   ViewChildren,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Level } from '@tiptap/extension-heading';
+import Color from '@tiptap/extension-color';
+import Highlight from '@tiptap/extension-highlight';
+import Image from '@tiptap/extension-image';
+import TextStyle from '@tiptap/extension-text-style';
 
 @Component({
   selector: 'app-document-editor',
@@ -32,6 +37,7 @@ export class DocumentEditorComponent
   @Input() content = '<p>Start writing...</p>';
   @Output() contentChange = new EventEmitter<string>();
   @ViewChildren('pageHost') pageHosts?: QueryList<ElementRef<HTMLElement>>;
+  @ViewChild('imageInput') imageInput?: ElementRef<HTMLInputElement>;
 
   private editors: Editor[] = [];
   private pendingExternalUpdate = false;
@@ -44,6 +50,9 @@ export class DocumentEditorComponent
   private paginationRaf = 0;
   private placeholderCleared = false;
   private pendingSelectionOffset: number | null = null;
+  textColor = '#000000';
+  highlightColor = '#fff59d';
+  readonly headingLevels: Level[] = [1, 2, 3, 4, 5, 6];
 
   get editor(): Editor | undefined {
     return this.editors[0];
@@ -109,6 +118,46 @@ export class DocumentEditorComponent
 
   setHeading(level: Level) {
     this.editors[0]?.chain().focus().toggleHeading({ level }).run();
+  }
+
+  applyTextColor(color: string) {
+    this.textColor = color;
+    this.editors[0]?.chain().focus().setColor(color).run();
+  }
+
+  applyHighlight(color: string) {
+    this.highlightColor = color;
+    this.editors[0]?.chain().focus().setHighlight({ color }).run();
+  }
+
+  clearHighlight() {
+    this.editors[0]?.chain().focus().unsetHighlight().run();
+  }
+
+  openImagePicker() {
+    this.imageInput?.nativeElement.click();
+  }
+
+  onImageSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const src = typeof reader.result === 'string' ? reader.result : '';
+      if (src) {
+        this.editors[0]?.chain().focus().setImage({ src, alt: file.name }).run();
+      }
+      if (this.imageInput?.nativeElement) {
+        this.imageInput.nativeElement.value = '';
+      }
+    };
+
+    reader.readAsDataURL(file);
   }
 
   isActive(name: string, attrs?: Record<string, unknown>) {
@@ -233,7 +282,17 @@ export class DocumentEditorComponent
   private createEditor(element: HTMLElement, content: string, index: number): Editor {
     return new Editor({
       element,
-      extensions: [StarterKit],
+      extensions: [
+        StarterKit.configure({
+          heading: {
+            levels: this.headingLevels,
+          },
+        }),
+        TextStyle,
+        Color,
+        Highlight.configure({ multicolor: true }),
+        Image.configure({ inline: true }),
+      ],
       content,
       onUpdate: ({ editor }) => {
         if (this.pendingExternalUpdate) {

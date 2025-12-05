@@ -6,18 +6,41 @@
     <button type="button" (click)="toggleItalic()" [class.active]="isActive('italic')">
       Italic
     </button>
-    <button type="button" (click)="setHeading(2)" [class.active]="isActive('heading', { level: 2 })">
-      H2
-    </button>
-    <button type="button" (click)="setHeading(3)" [class.active]="isActive('heading', { level: 3 })">
-      H3
-    </button>
+    <div class="toolbar-group heading-group" aria-label="Heading levels">
+      @for (level of headingLevels; track level) {
+        <button
+          type="button"
+          (click)="setHeading(level)"
+          [class.active]="isActive('heading', { level })"
+          [attr.aria-label]="'Heading ' + level"
+        >
+          H{{ level }}
+        </button>
+      }
+    </div>
     <button type="button" (click)="toggleBulletList()" [class.active]="isActive('bulletList')">
       Bullet list
     </button>
     <button type="button" (click)="toggleOrderedList()" [class.active]="isActive('orderedList')">
       Numbered list
     </button>
+    <label class="toolbar-input" aria-label="Text color">
+      Text color
+      <input type="color" [value]="textColor" (input)="applyTextColor(($event.target as HTMLInputElement).value)" />
+    </label>
+    <label class="toolbar-input" aria-label="Background color">
+      Highlight
+      <input
+        type="color"
+        [value]="highlightColor"
+        (input)="applyHighlight(($event.target as HTMLInputElement).value)"
+      />
+      <button type="button" class="muted" (click)="clearHighlight()">Clear</button>
+    </label>
+    <label class="toolbar-input" aria-label="Insert image">
+      <button type="button" class="primary" (click)="openImagePicker()">Insert image</button>
+      <input #imageInput type="file" accept="image/*" (change)="onImageSelected($event)" />
+    </label>
   </div>
 
   <wdoc-container class="editor-container">

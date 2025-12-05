@@ -19,6 +19,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
 }
 
 .editor-toolbar button {
@@ -36,6 +37,52 @@
 }
 
 .editor-toolbar button.active {
+  background: #312e81;
+  color: #ffffff;
+  border-color: #312e81;
+}
+
+.toolbar-group {
+  display: flex;
+  gap: 4px;
+}
+
+.heading-group button {
+  min-width: 44px;
+}
+
+.toolbar-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #d0d7de;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.toolbar-input input[type='file'] {
+  display: none;
+}
+
+.toolbar-input input[type='color'] {
+  width: 36px;
+  height: 32px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  padding: 0;
+  background: #fff;
+  cursor: pointer;
+}
+
+.toolbar-input .muted {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.toolbar-input .primary {
   background: #312e81;
   color: #ffffff;
   border-color: #312e81;
