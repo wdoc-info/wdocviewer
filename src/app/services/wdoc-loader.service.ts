@@ -71,7 +71,7 @@ export class WdocLoaderService {
         );
         return null;
       }
-      const html = await indexFile.async('text');
+      const html = (await indexFile.async('text')) as string;
       const processed = await this.htmlProcessingService.processHtml(zip, html, {
         defaultTitle,
       });
@@ -240,7 +240,7 @@ export class WdocLoaderService {
   }
 
   private async verifyManifestSection(
-    zip: JSZip,
+    zip: StreamedZip,
     section: ManifestSection,
     mismatches: string[],
   ): Promise<void> {

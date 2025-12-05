@@ -1,12 +1,11 @@
-import { Buffer } from 'buffer';
-import yauzl, { Entry, ZipFile } from 'yauzl';
+import JSZip, { JSZipObject } from 'jszip';
 
 export type ZipEntryType = 'text' | 'arraybuffer' | 'uint8array' | 'blob';
 
 export interface StreamedZipEntry {
   name: string;
   dir: boolean;
-  async(type: ZipEntryType | 'blob'): Promise<string | ArrayBuffer | Uint8Array | Blob>;
+  async(type: ZipEntryType): Promise<string | ArrayBuffer | Uint8Array | Blob>;
 }
 
 export interface ZipEntryLike {
@@ -34,116 +33,65 @@ export interface ZipContainer {
 
 export class StreamedZip implements ZipContainer {
   private constructor(
-    private readonly zipFile: ZipFile,
-    private readonly entries: Map<string, Entry>,
+    private readonly zip: JSZip,
+    private readonly entryMap: Map<string, JSZipObject>,
   ) {}
 
   static async fromArrayBuffer(buffer: ArrayBuffer): Promise<StreamedZip> {
-    const zipFile = await new Promise<ZipFile>((resolve, reject) => {
-      yauzl.fromBuffer(Buffer.from(buffer), { lazyEntries: true }, (err, zip) => {
-        if (err || !zip) {
-          reject(err ?? new Error('Unable to open archive'));
-          return;
-        }
-        resolve(zip);
-      });
-    });
-
-    const entries = new Map<string, Entry>();
-
-    await new Promise<void>((resolve, reject) => {
-      zipFile.on('entry', (entry: Entry) => {
-        entries.set(entry.fileName, entry);
-        zipFile.readEntry();
-      });
-      zipFile.once('end', () => resolve());
-      zipFile.once('error', (err) => reject(err));
-      zipFile.readEntry();
-    });
-
-    return new StreamedZip(zipFile, entries);
+    const zip = await JSZip.loadAsync(buffer, { createFolders: true });
+    const entryMap = new Map<string, JSZipObject>();
+    Object.values(zip.files).forEach((entry) => entryMap.set(entry.name, entry));
+    return new StreamedZip(zip, entryMap);
   }
 
   entries(): StreamedZipEntry[] {
-    return Array.from(this.entries.values()).map((entry) => this.wrapEntry(entry));
+    return Array.from(this.entryMap.values()).map((entry) => this.wrapEntry(entry));
   }
 
   file(path: string): StreamedZipEntry | null {
-    const entry = this.entries.get(path);
+    const entry = this.entryMap.get(path);
     if (!entry) {
       return null;
     }
     return this.wrapEntry(entry);
   }
 
-  folder(prefix: string): ZipFolderLike | null {
+  folder(prefix: string): StreamedZipFolder | null {
     const normalized = prefix.endsWith('/') ? prefix : `${prefix}/`;
-    const matches = Array.from(this.entries.values()).filter((entry) =>
-      entry.fileName.startsWith(normalized),
+    const matches = Array.from(this.entryMap.values()).filter((entry) =>
+      entry.name.startsWith(normalized),
     );
     if (matches.length === 0) {
       return null;
     }
 
-    const root = normalized;
     return {
-      root,
+      root: normalized,
       filter: (predicate) =>
         matches
-          .filter((entry) => predicate(entry.fileName, this.wrapEntry(entry)))
+          .filter((entry) => predicate(entry.name, this.wrapEntry(entry)))
           .map((entry) => this.wrapEntry(entry)),
-      file: (path: string) => this.file(`${normalized}${path}`),
+      file: (path: string) => {
+        const entry = this.entryMap.get(`${normalized}${path}`);
+        return entry ? this.wrapEntry(entry) : null;
+      },
     } satisfies StreamedZipFolder;
   }
 
-  private wrapEntry(entry: Entry): StreamedZipEntry {
+  private wrapEntry(entry: JSZipObject): StreamedZipEntry {
     return {
-      name: entry.fileName,
-      dir: /\/$/.test(entry.fileName),
+      name: entry.name,
+      dir: entry.dir,
       async: async (type: ZipEntryType) => {
-        const data = await this.readEntry(entry);
         switch (type) {
           case 'text':
-            return new TextDecoder().decode(data);
           case 'arraybuffer':
-            return data.buffer.slice(
-              data.byteOffset,
-              data.byteOffset + data.byteLength,
-            );
           case 'uint8array':
-            return data;
           case 'blob':
           default:
-            return new Blob([data]);
+            return entry.async(type);
         }
       },
     };
-  }
-
-  private async readEntry(entry: Entry): Promise<Uint8Array> {
-    return new Promise<Uint8Array>((resolve, reject) => {
-      this.zipFile.openReadStream(entry, (err, stream) => {
-        if (err || !stream) {
-          reject(err ?? new Error('Unable to read entry'));
-          return;
-        }
-
-        const chunks: Uint8Array[] = [];
-        stream.on('data', (chunk: Buffer) => {
-          chunks.push(new Uint8Array(chunk));
-        });
-        stream.once('error', (error) => reject(error));
-        stream.once('end', () => {
-          const totalLength = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
-          const merged = new Uint8Array(totalLength);
-          let offset = 0;
-          for (const chunk of chunks) {
-            merged.set(chunk, offset);
-            offset += chunk.byteLength;
-          }
-          resolve(merged);
-        });
-      });
-    });
   }
 }
