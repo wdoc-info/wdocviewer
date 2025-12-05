@@ -21,7 +21,7 @@ import { Level } from '@tiptap/extension-heading';
 import Color from '@tiptap/extension-color';
 import Highlight from '@tiptap/extension-highlight';
 import Image from '@tiptap/extension-image';
-import TextStyle from '@tiptap/extension-text-style';
+import { TextStyle } from '@tiptap/extension-text-style';
 
 @Component({
   selector: 'app-document-editor',

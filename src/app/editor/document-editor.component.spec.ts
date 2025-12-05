@@ -72,4 +72,23 @@ describe('DocumentEditorComponent', () => {
     await settle();
     expect(component.pageContents.length).toBeGreaterThan(1);
   });
+
+  it('applies color commands to the current selection', async () => {
+    component.applyTextColor('#123456');
+    component.applyHighlight('#abcdef');
+
+    await settle();
+
+    expect(component.textColor).toBe('#123456');
+    expect(component.highlightColor).toBe('#abcdef');
+  });
+
+  it('opens the image picker when requested', () => {
+    const click = jasmine.createSpy('click');
+    component.imageInput = { nativeElement: { click } } as any;
+
+    component.openImagePicker();
+
+    expect(click).toHaveBeenCalled();
+  });
 });
