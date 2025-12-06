@@ -98,17 +98,18 @@ export class NavbarComponent implements OnInit, OnDestroy {
       this.statusMessage = 'Please enter your email to continue.';
       return;
     }
+    this.emailSent = true;
     this.isSubmitting = true;
-    this.statusMessage = '';
+    this.statusMessage = 'Sending...';
     const { error } = await this.authService.signInWithEmail(this.email);
     this.isSubmitting = false;
     if (error) {
       this.statusMessage = error.message;
+      this.emailSent = false;
       return;
     }
     this.currentUserEmail = this.email;
     this.statusMessage = 'Please check your email.';
-    this.emailSent = true;
   }
 
   async onLogout() {
@@ -119,5 +120,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
     this.statusMessage = '';
     this.email = '';
     this.isSettingsModalOpen = false;
+    this.isAuthModalOpen = false;
+    this.emailSent = false;
   }
 }

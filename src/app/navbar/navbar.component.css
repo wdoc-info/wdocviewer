@@ -165,6 +165,12 @@
   gap: 0.5rem;
 }
 
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .input-label {
   font-weight: 600;
 }
@@ -175,6 +181,8 @@
   border: 1px solid #cbd5e1;
   border-radius: 4px;
   font-size: 1rem;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 .status-message {

@@ -45,35 +45,34 @@
       </div>
       <div class="modal-body">
         <ng-container *ngIf="!emailSent; else emailSentTemplate">
-          <label class="input-label" for="auth-email">Email address</label>
-          <input
-            id="auth-email"
-            name="email"
-            type="email"
-            [(ngModel)]="email"
-            class="modal-input"
-            placeholder="you@example.com"
-            required
-          />
-          <p class="status-message" *ngIf="statusMessage">{{ statusMessage }}</p>
+          <form class="auth-form" (ngSubmit)="onAuthSubmit()">
+            <label class="input-label" for="auth-email">Email address</label>
+            <input
+              id="auth-email"
+              name="email"
+              type="email"
+              [(ngModel)]="email"
+              class="modal-input"
+              placeholder="you@example.com"
+              required
+            />
+            <p class="status-message" *ngIf="statusMessage">{{ statusMessage }}</p>
+            <div class="modal-actions">
+              <button
+                type="submit"
+                class="nav-btn full-width primary"
+                [disabled]="isSubmitting"
+              >
+                {{ isSubmitting ? 'Sending...' : 'Send login link' }}
+              </button>
+            </div>
+            <p class="hint">We will send a login or signup link to your email.</p>
+          </form>
         </ng-container>
         <ng-template #emailSentTemplate>
           <p class="status-message">{{ statusMessage }}</p>
         </ng-template>
       </div>
-      <div class="modal-actions" *ngIf="!emailSent">
-        <button
-          type="button"
-          class="nav-btn full-width"
-          (click)="onAuthSubmit()"
-          [disabled]="isSubmitting"
-        >
-          {{ isSubmitting ? 'Sending...' : 'Send login link' }}
-        </button>
-      </div>
-      <p class="hint" *ngIf="!emailSent">
-        We will send a login or signup link to your email.
-      </p>
     </div>
   </div>
 
